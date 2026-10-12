@@ -4,6 +4,10 @@ Version entièrement réécrite : même univers, mêmes cartes, mêmes illustrat
 mais un code propre, des règles testées et une interface pensée d'abord pour le téléphone.
 Aucune dépendance, aucune étape de compilation : ce sont de simples fichiers statiques.
 
+## Apprendre à jouer
+Menu → **🎓 Tutoriel** : un premier duel guidé en 19 étapes (lancer, invoquer, se déplacer, charger,
+attaquer, cartes, tactique, siège). Il se termine en vrai duel contre l'IA.
+
 ## Organisation du code
 | Fichier | Rôle |
 |---|---|

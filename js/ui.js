@@ -110,6 +110,8 @@ function renderMenu() {
   $('#pfBar').style.width = xp.pct + '%';
   $('#pfNext').innerHTML = nl ? `Prochain déblocage — <b>Niveau ${nl}</b> : ${store.unlocksAtLevel(nl).slice(0, 4).join(' · ')}`
     : `Collection complète · ${store.profile.wins} victoire(s) sur ${store.profile.matches} duel(s)`;
+  $('#mTuto').classList.toggle('gold', !store.settings.tutorialDone);
+  $('#mTuto').classList.toggle('ghost', !!store.settings.tutorialDone);
   const saved = store.loadBattle();
   $('#mResume').classList.toggle('hidden', !saved);
   if (saved) $('#mResume').textContent = `▶ Reprendre le duel (tour ${saved.turn})`;
@@ -123,6 +125,7 @@ function renderMenu() {
   $$('[data-arena]').forEach(b => b.onclick = () => { store.settings.arena = b.dataset.arena; store.saveSettings(); renderMenu(); });
   $$('[data-inv]').forEach(b => b.onclick = () => { store.settings.invocator = b.dataset.inv; store.saveSettings(); renderMenu(); });
 }
+$('#mTuto').onclick = () => startTutorial();
 $('#mQuick').onclick = () => startBattle({mode: 'quick', arenaId: store.settings.arena});
 $('#mCampaign').onclick = () => show('campaign');
 $('#mDeck').onclick = () => { deckState.cards = store.loadDeck(); show('deck'); };
@@ -302,7 +305,9 @@ function renderAnalysis() {
 let S = null;
 const ui = {sel: null, mode: null, summonId: null, eff: null, pending: null, busy: false, transpose: false, tile: 40};
 
+function save() { if (!tut.on) store.saveBattle(S); }
 function startBattle(opts) {
+  if (opts.mode === 'tutorial') return startTutorial();
   const deck = store.loadDeck();
   S = E.newBattle({...opts, playerDeck: deck, invocatorId: store.settings.invocator});
   enterBattle();
@@ -313,7 +318,7 @@ function enterBattle() {
   Object.assign(ui, {sel: null, mode: null, summonId: null, eff: null, pending: null, busy: false, finished: false});
   show('battle');
   S.fx.length = 0;
-  store.saveBattle(S);
+  save();
   requestAnimationFrame(() => { layoutBoard(); render(); scrollToCore(); });
 }
 const P = () => S.player;
@@ -366,6 +371,7 @@ function render() {
   if (ui.sel && !sel) ui.sel = null;
   renderTop(); renderCrests(); renderBoard(); renderContext(); renderHand(); renderActions(); renderPrompt();
   layoutBoard();
+  tutUpdate();
   if (S.over && !ui.finished && current === 'battle') { ui.finished = true; store.clearBattle(); setTimeout(finishBattle, 700); }
   $('#sideLog').innerHTML = S.log.slice(0, 40).map(l => `<div class="${l.cls}"><small>T${l.turn}</small> ${l.msg}</div>`).join('');
   $('#ticker').innerHTML = S.log[0] ? S.log[0].msg : '';
@@ -505,7 +511,7 @@ async function act(fn, keepSel = true) {
   render();
   await playFx();
   render();
-  store.saveBattle(S);
+  save();
 }
 $('#board').addEventListener('click', e => {
   const t = e.target.closest('.tile');
@@ -581,7 +587,7 @@ $('#aRoll').onclick = async () => {
   if (!res.ok) return toast(res.msg);
   ui.busy = true; render();
   await playFx();
-  ui.busy = false; render(); store.saveBattle(S);
+  ui.busy = false; render(); save();
 };
 $('#aSummon').onclick = () => {
   if (!myTurn()) return;
@@ -647,13 +653,14 @@ async function enemyTurn() {
     render(); await playFx();
   }
   ui.busy = false; render();
-  store.saveBattle(S);
+  save();
   if (!S.over) banner('À toi de jouer');
 }
 
 /* ----- fin du duel ----- */
 function finishBattle() {
   store.clearBattle();
+  if (tut.on) endTutorial(false);
   const win = S.winner === 'player';
   audio.play(win ? 'win' : 'lose');
   let first = false, extra = '';
@@ -756,6 +763,7 @@ async function diceAnimation(side, dice) {
 
 /* =================== RÈGLES =================== */
 const RULES_HTML = `<h2>Règles du duel</h2>
+<p class="notice good">Nouveau ? Le plus simple est de lancer <b>🎓 Tutoriel</b> depuis le menu : un premier duel guidé pas à pas.</p>
 <p><b>But :</b> détruire l’Invocateur adverse (7 PV ; Aegis 8).</p>
 <h3>1. Les dés sont ta seule ressource</h3>
 <p>Chaque monstre de ton deck apporte son dé à 6 faces. À chaque tour tu lances 3 dés tirés de ton pool ; chaque face rejoint ta réserve (9 max par symbole) :
@@ -781,8 +789,95 @@ Touche deux fois pour confirmer. <b>Charger</b> dépense 1 ⚔ : +1 dégât (max
 <h3>10. Le donjon s’emballe</h3>
 <p>Tour 4 : pluie de coffres. Tour 7 : tempête de dés (4 dés). Tour 10 : <b>Mort subite</b> (Invocateurs -1 PV, monstres +1 ATQ). Tour 15 : <b>Effondrement</b> — chaque Invocateur perd 1 PV au début de son tour.</p>`;
 
+
+/* =================== TUTORIEL =================== */
+/* Un vrai duel, préparé à l'avance (lancer imposé, Gobelin rival à portée), guidé étape par étape.
+   Chaque étape décrit : le texte, ce qui clignote (hi), ce qu'on a le droit de toucher (allow)
+   et la condition pour passer à la suivante (done). Sans "done", un bouton « Suivant » s'affiche. */
+const tut = {on: false, i: 0};
+const lynx = () => S.units.find(u => u.side === 'player' && u.id === 'storm_lynx');
+const TUTO = [
+  {text: '<b>Bienvenue dans Dice Dungeon !</b> Ton Invocateur est en bas (♥ en bleu), celui du rival en haut. <b>Pour gagner, détruis l’Invocateur rival.</b>', hi: ['.core-enemy', '.core-player']},
+  {text: 'Tout commence par les dés. Touche <b>🎲 Lancer</b>.', hi: ['#aRoll'], allow: ['#aRoll', '#diceOverlay'], done: () => P().rolled && !ui.busy},
+  {text: 'Chaque face rejoint ta <b>réserve</b> : ◇ invoquer · ➤ se déplacer · ⚔ renforcer une attaque · ✦ jouer des cartes · ◆ se défendre. Tu as ◇1 ➤1 ⚔1.', hi: ['#crests']},
+  {text: 'Fais entrer un monstre : touche <b>◇ Invoquer</b>.', hi: ['#aSummon'], allow: ['#aSummon'], done: () => !!$('#sheet:not(.hidden) [data-sum]')},
+  {text: 'Choisis le <b>Storm Lynx</b> : un petit monstre (1 ◇) très rapide.', hi: ['[data-sum="storm_lynx"]'], allow: ['[data-sum="storm_lynx"]', '[data-sinfo]', '#aSummon'], sheet: true, done: () => ui.mode === 'summon'},
+  {text: 'Les cases <b>dorées</b> touchent ton Invocateur. Touche la case dorée <b>juste devant lui</b>.', hi: ['.tile[data-k="3,1"]'], allow: ['.tile[data-k="3,1"]'], done: () => !!lynx() && !ui.busy},
+  {text: 'Invoquer crée <b>4 cases de donjon</b> (ici un Plateau Tempête). Tes monstres ne se déplacent que sur le donjon : chaque invocation l’agrandit vers le rival.'},
+  {text: 'Touche ton <b>Storm Lynx</b> pour le sélectionner.', hi: ['.unit.mine'], allow: ['.unit.mine'], done: () => ui.sel === lynx()?.uid},
+  {text: 'Les cases <b>bleues</b> = déplacement (1 ➤ par case). Touche la case bleue <b>devant</b> le Lynx, puis <b>touche-la encore</b> pour confirmer.', hi: ['.tile[data-k="3,2"]'], allow: ['.tile[data-k="3,2"]'], done: () => lynx()?.c === 2 && !ui.busy},
+  {text: 'Un <b>Gobelin rival</b> (♥3) est juste à côté ! Renforce d’abord ton attaque : <b>⚔ Charger</b> (+1 dégât, coûte 1 ⚔).', hi: ['#uCharge'], allow: ['#uCharge'], done: () => lynx()?.empowered >= 1},
+  {text: 'Les cases <b>rouges</b> = attaque (gratuite, une par tour). Touche le Gobelin, puis <b>encore</b> pour confirmer.', hi: ['.tile[data-k="3,3"]'], allow: ['.tile[data-k="3,3"]'], done: () => lynx()?.attacked && !ui.busy},
+  {text: '<b>Bravo !</b> Attaque 2 + 1 chargé + 1 de terrain (un monstre Foudre sur un Plateau Tempête) : le Gobelin est détruit. Astuce : touche n’importe quel monstre, case ou carte pour lire sa fiche.'},
+  {text: '<b>Combos :</b> si ton lancer contient les symboles d’une compétence (Storm Lynx : ➤➤), le bouton <b>✦</b> s’allume. Utiliser un combo ne coûte aucun blason.', hi: ['#uSkill']},
+  {text: '<b>Ta main :</b> des cartes Effet payées en ✦, <b>une par tour</b>. Touche une carte pour la lire. <b>📖 Piocher</b> coûte 2 ✦.', hi: ['#hand']},
+  {text: '<b>◆ Tactique</b> : préparer une Garde (1 ◆, réduit la prochaine attaque subie) ou faire une Marche forcée (2 blasons → 1 ➤).', hi: ['#aTactics']},
+  {text: 'Termine ton tour : <b>▶ Fin du tour</b>. Le rival va jouer.', hi: ['#aEnd'], allow: ['#aEnd'], done: () => S.side === 'enemy' || S.turn > 1},
+  {text: 'Le rival joue : il lance ses dés, invoque et attaque avec les mêmes règles que toi…', done: () => S.turn >= 2 && S.side === 'player' && !ui.busy},
+  {text: '<b>Siège :</b> amène tes monstres à côté de l’Invocateur rival et frappe-le. 2 dégâts max par attaque, et sa <b>Barrière</b> bloque 1 dégât sur la première attaque de chaque tour.', hi: ['.core-enemy']},
+  {text: 'Le <b>Relais ✦</b> au centre offre 1 pas gratuit par tour à qui le tient. Au tour 10 : Mort subite ; au tour 15 : Effondrement. <b>À toi de finir ce duel — bonne chance !</b>', hi: ['.sp-relic'], last: true}
+];
+function startTutorial() {
+  closeSheet();
+  S = E.newBattle({mode: 'quick', arenaId: 'quick', playerDeck: [...DD.DEFAULT_DECK], invocatorId: store.settings.invocator, enemyPresetKey: 'swarm'});
+  S.mode = 'tutorial';
+  // décor préparé : un couloir rival jusqu'au milieu et un Gobelin à portée
+  for (let c = 3; c <= 9; c++) E.addFloor(S, 3, c, 'enemy', 'citadel');
+  for (const k in S.tiles) S.tiles[k].special = k === E.key(S.relay.r, S.relay.c) ? 'relic' : null;
+  E.newUnit(S, 'enemy', 'goblin_raider', 3, 3);
+  S.cores.enemy.hp = S.cores.enemy.maxHp = 5;
+  S.noSpecials = true;   // pas de piège surprise pendant les explications
+  S.player.hand = ['guard_sigil', 'mystic_heal', 'treasure_sense'];
+  S.player.forcedRoll = [{id: 'storm_lynx', face: 'summon'}, {id: 'goblin_raider', face: 'move'}, {id: 'ember_whelp', face: 'attack'}];
+  S.log = []; S.log.unshift({msg: '🎓 Tutoriel : suis les bulles.', cls: 'event', turn: 1});
+  tut.on = true; tut.i = 0;
+  enterBattle();
+}
+function endTutorial(completed) {
+  tut.on = false;
+  if (S) S.noSpecials = false;
+  $('#tutBox')?.remove();
+  $$('.tutHi').forEach(e => e.classList.remove('tutHi'));
+  store.settings.tutorialDone = true; store.saveSettings();
+  if (completed) { save(); toast('Tutoriel terminé : le duel continue normalement.'); }
+}
+function tutUpdate() {
+  if (!tut.on || current !== 'battle') return;
+  let st = TUTO[tut.i];
+  while (st && st.done && st.done()) { tut.i++; st = TUTO[tut.i]; }
+  if (!st) return endTutorial(true);
+  let box = $('#tutBox');
+  if (!box) { box = document.createElement('div'); box.id = 'tutBox'; box.className = 'tutBox panel'; document.body.appendChild(box); }
+  const key = tut.i + (st.done ? 'w' : 'n');
+  if (box.dataset.key !== key) {
+    box.dataset.key = key;
+    box.innerHTML = `<div class="tutHead"><span>🎓 ${tut.i + 1} / ${TUTO.length}</span><button class="linkBtn" id="tutSkip">Passer le tutoriel</button></div>
+      <p>${st.text}</p>${st.done ? '' : `<div class="row"><button class="btn gold small" id="tutNext">${st.last ? 'Jouer !' : 'Suivant ▶'}</button></div>`}`;
+    box.querySelector('#tutSkip').onclick = () => endTutorial(true);
+    const nx = box.querySelector('#tutNext');
+    if (nx) nx.onclick = () => { audio.play('tap'); tut.i++; if (tut.i >= TUTO.length) endTutorial(true); else tutUpdate(); };
+  }
+  $$('.tutHi').forEach(e => e.classList.remove('tutHi'));
+  let low = 0, n = 0;
+  for (const sel of st.hi || []) $$(sel).forEach(e => { e.classList.add('tutHi'); const r = e.getBoundingClientRect(); low += (r.top + r.height / 2) / innerHeight; n++; });
+  // la bulle se place du côté opposé à ce qu'elle désigne
+  box.classList.toggle('atBottom', n > 0 && low / n < 0.5);
+}
+/* pendant le tutoriel, seuls les éléments de l'étape répondent */
+document.addEventListener('click', e => {
+  if (!tut.on || current !== 'battle') return;
+  const t = e.target, st = TUTO[tut.i];
+  if (!st || t.closest('#tutBox, #bMenu, #sheetClose')) return;
+  if (t.closest('#sheet') && !st.sheet && !t.closest('[data-sum]')) return;   // menus, fiches : libres
+  if (st.allow && t.closest(st.allow.join(','))) return;
+  e.stopPropagation(); e.preventDefault();
+  const box = $('#tutBox');
+  if (box) { box.classList.remove('nudge'); void box.offsetWidth; box.classList.add('nudge'); }
+}, true);
+document.addEventListener('click', () => setTimeout(tutUpdate, 0));
+
 /* ----- démarrage ----- */
-document.addEventListener('visibilitychange', () => { if (document.hidden && S && !S.over && current === 'battle' && !ui.busy) store.saveBattle(S); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && S && !S.over && current === 'battle' && !ui.busy) save(); });
 show('menu');
 DD.ui = {show, startBattle, render, get state() { return S; }, ui};
 })(globalThis.DD = globalThis.DD || {});

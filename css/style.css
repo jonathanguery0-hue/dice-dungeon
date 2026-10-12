@@ -325,3 +325,17 @@ h2{font-size:21px}h3{font-size:16px}
 @keyframes slash{from{clip-path:inset(0 100% 0 0)}50%{clip-path:inset(0 0 0 0)}to{clip-path:inset(0 0 0 100%)}}
 @keyframes shake{25%{transform:translate(-3px,1px)}50%{transform:translate(3px,-1px)}75%{transform:translate(-2px,0)}}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ===== tutoriel ===== */
+.tutBox{position:fixed;z-index:65;left:calc(8px + var(--safe-l));right:calc(8px + var(--safe-r));top:calc(58px + var(--safe-t));max-width:520px;margin:0 auto;padding:8px 12px;font-size:14px!important;border-color:#b6944a;box-shadow:0 12px 40px #000c,0 0 0 1px #e6c77933;font-size:14.5px}
+.tutBox{background:#0b1424!important}
+.tutBox p{margin:5px 0}
+.tutBox.atBottom{top:auto;bottom:calc(8px + var(--safe-b))}
+.tutBox .row{justify-content:flex-end}
+.tutHead{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--gold);letter-spacing:.06em}
+.linkBtn{border:0;background:none;color:var(--muted);text-decoration:underline;font-size:12px;padding:4px}
+.tutBox.nudge{animation:nudge .35s}
+.tutHi{position:relative;z-index:4;outline:3px solid #ffe08a;outline-offset:2px;border-radius:10px;animation:tutPulse 1.2s ease-in-out infinite}
+@keyframes tutPulse{50%{outline-color:#ffe08a33;box-shadow:0 0 22px #ffe08a99}}
+@keyframes nudge{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@media (orientation:landscape) and (max-height:500px){.tutBox{top:auto;bottom:calc(8px + var(--safe-b));left:8px;right:auto;width:min(46vw,420px);font-size:13px}}

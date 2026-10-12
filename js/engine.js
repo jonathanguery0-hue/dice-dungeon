@@ -131,15 +131,16 @@ function roll(S, side) {
   if (P.rolled) return fail('Tu as déjà lancé les dés ce tour.');
   const count = P.bonusDieNext ? 4 : 3;
   P.bonusDieNext = false; P.dice = [];
-  for (let i = 0; i < count; i++) {
+  const forced = P.forcedRoll; P.forcedRoll = null;      // lancer imposé (tutoriel)
+  for (let i = 0; i < (forced ? forced.length : count); i++) {
     if (!P.monsterBag.length) P.monsterBag = shuffle(P.monsterDeck);
-    const id = P.monsterBag.shift(), face = pick(MONSTERS[id].faces);
+    const id = forced ? forced[i].id : P.monsterBag.shift(), face = forced ? forced[i].face : pick(MONSTERS[id].faces);
     P.dice.push({id, face});
     P.crests[face] = Math.min(CREST_CAP, P.crests[face] + 1);
   }
   P.rolled = true;
   fx(S, {t: 'roll', side, dice: P.dice.map(d => ({...d}))});
-  log(S, `${side === 'player' ? 'Tu lances' : 'Le rival lance'} ${count} dés : ${P.dice.map(d => FACE[d.face][0]).join(' ')}.`, who(side));
+  log(S, `${side === 'player' ? 'Tu lances' : 'Le rival lance'} ${P.dice.length} dés : ${P.dice.map(d => FACE[d.face][0]).join(' ')}.`, who(side));
   return ok();
 }
 function rollFaces(S, side) { return S[side].dice.map(d => d.face); }
@@ -176,6 +177,15 @@ function summonMonster(S, side, id, r, c) {
   placeMonster(S, side, id, r, c);
   return ok();
 }
+/* crée une unité sur le plateau, sans coût ni effet d'arrivée */
+function newUnit(S, side, id, r, c) {
+  const m = MONSTERS[id];
+  const u = {uid: 'u' + (S.nextUid++), id, side, r, c, hp: m.hp, maxHp: m.hp, atk: m.atk, mov: m.mov, shield: 0,
+    attacked: false, skillUsed: false, movedSteps: 0, stealthUntil: 0, frozenUntil: 0, wolfGuardUsed: false,
+    bonusMove: 0, empowered: 0, unstable: false, prairieUsed: false};
+  S.units.push(u);
+  return u;
+}
 function placeMonster(S, side, id, r, c) {
   const m = MONSTERS[id], P = S[side], biome = BIOME_BY_MONSTER[id] || 'citadel';
   const cells = [];
@@ -184,12 +194,9 @@ function placeMonster(S, side, id, r, c) {
   for (const [a, b] of dirs) if (addFloor(S, r + a, c + b, side, biome)) cells.push([r + a, c + b]);
   for (const [a, b] of cells) maybeSpawnSpecial(S, a, b);
   S.activeBiome = biome;
-  const u = {uid: 'u' + (S.nextUid++), id, side, r, c, hp: m.hp, maxHp: m.hp, atk: m.atk, mov: m.mov, shield: 0,
-    attacked: false, skillUsed: false, movedSteps: 0, stealthUntil: 0, frozenUntil: 0, wolfGuardUsed: false,
-    bonusMove: 0, empowered: 0, unstable: false, prairieUsed: false};
+  const u = newUnit(S, side, id, r, c);
   if (P.invId === 'vega' && !P.firstSummonDone) { u.mov += 1; log(S, `Avant-garde de Vega : ${m.name} gagne +1 MOV.`, who(side)); }
   P.firstSummonDone = true;
-  S.units.push(u);
   fx(S, {t: 'summon', side, id, r, c, cells, biome});
   log(S, `${side === 'player' ? 'Tu invoques' : 'Le rival invoque'} <b>${m.name}</b> (${summonTier(m)}).`, who(side));
   applyFamilySummon(S, u);
@@ -199,7 +206,7 @@ function placeMonster(S, side, id, r, c) {
 }
 function maybeSpawnSpecial(S, r, c) {
   const t = tileAt(S, r, c);
-  if (!t || t.special || rng() > 0.27) return;
+  if (!t || t.special || S.noSpecials || rng() > 0.27) return;
   const x = rng();
   t.special = x < 0.34 ? 'treasure' : x < 0.57 ? 'boost' : x < 0.78 ? 'shrine' : 'trap';
 }
@@ -657,7 +664,7 @@ function endGame(S, winner) {
   log(S, winner === 'player' ? '<b>Victoire !</b> L’Invocateur rival est détruit.' : '<b>Défaite.</b> Ton Invocateur est tombé.', 'event');
 }
 
-DD.engine = {HAND_LIMIT, COLLAPSE_TURN, key, unkey, opp, dist, shuffle, newBattle, inBounds, isBlocked, tileAt, unitAt, unitById, coreAt, biomeAt,
+DD.engine = {HAND_LIMIT, COLLAPSE_TURN, newUnit, addFloor, key, unkey, opp, dist, shuffle, newBattle, inBounds, isBlocked, tileAt, unitAt, unitById, coreAt, biomeAt,
   neighbors, adjacent, isStealthed, isFrozen, unitAtk, invocator, canDraw, drawEffect, concentrationCost, concentrate, roll,
   rollFaces, hasCombo, comboKey, isSummonTarget, summonTargets, summonRoster, summonMonster, reach, moveBudget, canMove,
   moveTargets, move, dealDamage, canAttack, attackTargets, attackPreview, attack, charge, prepareGuard, forcedMarch,
