@@ -9,6 +9,8 @@ const {MONSTERS, EFFECTS, SKILLS, ARENAS, INVOCATORS, DECK_PRESETS, CAMPAIGN_MIS
 
 const HAND_LIMIT = 5, START_HAND = 3, CREST_CAP = 9, SIEGE_CAP = 2, COLLAPSE_TURN = 15;
 const rng = () => (DD.rng || Math.random)();
+/* hasard reproductible : même graine, même suite de nombres (défi du jour) */
+function seeded(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const pick = a => a[Math.floor(rng() * a.length)];
 function shuffle(a) { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const key = (r, c) => r + ',' + c;
@@ -20,9 +22,9 @@ const fail = msg => ({ok: false, msg});
 const who = side => side === 'player' ? 'you' : 'foe';
 
 /* ---------- création d'un duel ---------- */
-function newPlayer(deck, invId) {
+function newPlayer(deck, invId, extra = {}) {
   const monsters = deck.filter(id => MONSTERS[id]), effects = deck.filter(id => EFFECTS[id]);
-  return {monsterDeck: monsters, monsterBag: shuffle(monsters), effectDeck: shuffle(effects), discard: [], hand: [],
+  return {faces: extra.faces || {}, hpBonus: extra.hpBonus || {}, costBonus: extra.costBonus || {}, monsterDeck: monsters, monsterBag: shuffle(monsters), effectDeck: shuffle(effects), discard: [], hand: [],
     crests: {summon: 0, move: 0, attack: 0, magic: 0, guard: 0}, dice: [], rolled: false, combosUsed: [], reaction: 0,
     concentrationUsed: false, magicPlayed: false, forcedMarchUsed: false, invId, invPassiveUsed: false,
     firstSummonDone: false, nextAttackBoost: 0, arcaneDiscount: 0, relayDiscount: 0, bonusDieNext: false};
@@ -35,32 +37,46 @@ function newBattle(opts) {
   const enemyPresetKey = mission ? mission.preset : (opts.enemyPresetKey || pick(AI_PRESET_KEYS));
   const pInv = INVOCATORS[opts.invocatorId] || INVOCATORS.aegis;
   const eInv = INVOCATORS[ENEMY_INVOCATOR_BY_PRESET[enemyPresetKey] || 'aegis'];
-  const eHp = mission ? mission.core : eInv.hp;
+  const eHp = opts.enemyHp || (mission ? mission.core : eInv.hp);
+  const pHp = opts.playerMaxHp || pInv.hp;
   const S = {
-    v: 7, mode, missionIndex: mission ? opts.missionIndex : null, arenaId: arena.id, rows: arena.rows, cols: arena.cols,
+    v: 7, mode, missionIndex: mission ? opts.missionIndex : null, rivalName: opts.rivalName || (mission ? mission.rival.split(' — ')[0] : null),
+    meta: opts.meta || null, stats: {player: newStats(), enemy: newStats()}, _src: null, arenaId: arena.id, rows: arena.rows, cols: arena.cols,
     enemyPresetKey, phase: 1, turn: 1, side: 'player', over: false, winner: null,
     relay: {r: arena.relay[0], c: arena.relay[1]}, blocked: arena.blocked.map(([r, c]) => key(r, c)), tiles: {},
     units: [], nextUid: 1, relicOwner: null, activeBiome: 'citadel', eventsDone: [], suddenDeath: false,
     cores: {
-      player: {side: 'player', r: arena.coreRow, c: arena.playerCoreCol, hp: pInv.hp, maxHp: pInv.hp, barrier: true, invId: pInv.id},
+      player: {side: 'player', r: arena.coreRow, c: arena.playerCoreCol, hp: Math.min(pHp, opts.playerHp || pHp), maxHp: pHp, barrier: true, invId: pInv.id},
       enemy: {side: 'enemy', r: arena.coreRow, c: arena.enemyCoreCol, hp: eHp, maxHp: eHp, barrier: true, invId: eInv.id}
     },
-    player: newPlayer(opts.playerDeck, pInv.id),
-    enemy: newPlayer(DECK_PRESETS[enemyPresetKey].deck, eInv.id),
+    player: newPlayer(opts.playerDeck, pInv.id, opts.playerCards),
+    enemy: newPlayer(opts.enemyDeck || DECK_PRESETS[enemyPresetKey].deck, eInv.id),
     log: [], fx: []
   };
   for (const [r, c, b] of arena.neutral) addFloor(S, r, c, 'neutral', b || 'citadel');
   addFloor(S, S.relay.r, S.relay.c, 'neutral', 'arcane');
   S.tiles[key(S.relay.r, S.relay.c)].special = 'relic';
   for (let i = 0; i < START_HAND; i++) { drawEffect(S, 'player'); drawEffect(S, 'enemy'); }
-  if (mission) {
-    while (S.enemy.hand.length < (mission.mods?.hand || START_HAND) && drawEffect(S, 'enemy'));
+  if (opts.enemyDice) S.enemy.diceCount = opts.enemyDice;
+  const enemyHand = opts.enemyHand || mission?.mods?.hand || START_HAND;
+  while (S.enemy.hand.length < enemyHand && drawEffect(S, 'enemy'));
+  if (opts.intro) log(S, opts.intro, 'event');
+  else if (mission) {
     log(S, `<b>Campagne — Duel ${S.missionIndex + 1} :</b> ${mission.name}. ${mission.rule}`, 'event');
   } else log(S, `Le rival joue <b>${DECK_PRESETS[enemyPresetKey].name}</b> — ${DECK_PRESETS[enemyPresetKey].subtitle}.`, 'event');
   log(S, `<b>${arena.name}</b> (${arena.size}) — ${arena.desc}`, 'event');
   startTurn(S, 'player');
   return S;
 }
+
+/* ---------- statistiques du duel (XP par carte, succès, étoiles) ---------- */
+function newStats() { return {cards: {}, summons: 0, kills: 0, lost: 0, combos: 0, coreDmg: 0, effects: 0}; }
+function cardStat(S, side, id) {
+  const c = S.stats[side].cards;
+  return c[id] || (c[id] = {summoned: 0, dmg: 0, kills: 0, coreDmg: 0, combos: 0, played: 0});
+}
+/* source des dégâts en cours (carte qui agit), pour attribuer l'XP */
+function withSource(S, side, id, fn) { const prev = S._src; S._src = {side, id}; try { return fn(); } finally { S._src = prev; } }
 
 /* ---------- accès au plateau ---------- */
 function inBounds(S, r, c) { return r >= 0 && r < S.rows && c >= 0 && c < S.cols; }
@@ -129,12 +145,12 @@ function roll(S, side) {
   const P = S[side];
   if (S.over || S.side !== side) return fail('Ce n’est pas ton tour.');
   if (P.rolled) return fail('Tu as déjà lancé les dés ce tour.');
-  const count = P.bonusDieNext ? 4 : 3;
+  const count = (P.diceCount || 3) + (P.bonusDieNext ? 1 : 0);
   P.bonusDieNext = false; P.dice = [];
   const forced = P.forcedRoll; P.forcedRoll = null;      // lancer imposé (tutoriel)
   for (let i = 0; i < (forced ? forced.length : count); i++) {
     if (!P.monsterBag.length) P.monsterBag = shuffle(P.monsterDeck);
-    const id = forced ? forced[i].id : P.monsterBag.shift(), face = forced ? forced[i].face : pick(MONSTERS[id].faces);
+    const id = forced ? forced[i].id : P.monsterBag.shift(), face = forced ? forced[i].face : pick(facesOf(S, side, id));
     P.dice.push({id, face});
     P.crests[face] = Math.min(CREST_CAP, P.crests[face] + 1);
   }
@@ -143,6 +159,7 @@ function roll(S, side) {
   log(S, `${side === 'player' ? 'Tu lances' : 'Le rival lance'} ${P.dice.length} dés : ${P.dice.map(d => FACE[d.face][0]).join(' ')}.`, who(side));
   return ok();
 }
+function facesOf(S, side, id) { return (S[side].faces && S[side].faces[id]) || MONSTERS[id].faces; }
 function rollFaces(S, side) { return S[side].dice.map(d => d.face); }
 function hasCombo(S, side, req) {
   const faces = rollFaces(S, side);
@@ -197,10 +214,12 @@ function placeMonster(S, side, id, r, c) {
   const u = newUnit(S, side, id, r, c);
   if (P.invId === 'vega' && !P.firstSummonDone) { u.mov += 1; log(S, `Avant-garde de Vega : ${m.name} gagne +1 MOV.`, who(side)); }
   P.firstSummonDone = true;
+  if (P.hpBonus && P.hpBonus[id]) { u.maxHp += P.hpBonus[id]; u.hp += P.hpBonus[id]; }
+  cardStat(S, side, id).summoned++; S.stats[side].summons++;
   fx(S, {t: 'summon', side, id, r, c, cells, biome});
   log(S, `${side === 'player' ? 'Tu invoques' : 'Le rival invoque'} <b>${m.name}</b> (${summonTier(m)}).`, who(side));
   applyFamilySummon(S, u);
-  if (id === 'crimson_drake') for (const v of S.units.filter(x => x.side !== side && adjacent(u, x))) dealDamage(S, v, 1);
+  if (id === 'crimson_drake') withSource(S, side, id, () => { for (const v of S.units.filter(x => x.side !== side && adjacent(u, x))) dealDamage(S, v, 1); });
   arrive(S, u);
   return u;
 }
@@ -390,7 +409,11 @@ function dealDamage(S, t, amount) {
   if (amount <= 0) { float(S, t.r, t.c, '0', 'block'); return 0; }
   t.hp -= amount;
   float(S, t.r, t.c, '-' + amount, 'damage');
+  const src = S._src && S._src.side !== t.side ? S._src : null;
+  if (src) cardStat(S, src.side, src.id).dmg += Math.min(amount, amount + t.hp);
   if (t.hp <= 0) {
+    S.stats[t.side].lost++;
+    if (src) { cardStat(S, src.side, src.id).kills++; S.stats[src.side].kills++; }
     S.units = S.units.filter(x => x !== t);
     fx(S, {t: 'death', r: t.r, c: t.c, id: t.id});
     log(S, `<b>${name}</b> est détruit.`, 'event');
@@ -427,6 +450,10 @@ function attackPreview(S, u, r, c) {
   return {core: false, dmg, kills: dmg >= t.hp};
 }
 function attack(S, uid, r, c) {
+  const u = unitById(S, uid);
+  return u ? withSource(S, u.side, u.id, () => attackImpl(S, uid, r, c)) : attackImpl(S, uid, r, c);
+}
+function attackImpl(S, uid, r, c) {
   const u = unitById(S, uid), chk = canAttack(S, u);
   if (!chk.ok) return chk;
   if (!attackTargets(S, uid).some(([a, b]) => a === r && b === c)) {
@@ -449,6 +476,7 @@ function attack(S, uid, r, c) {
     const barrier = core.barrier;
     if (barrier) { core.barrier = false; dmg = Math.max(0, dmg - 1); }
     core.hp = Math.max(0, core.hp - dmg);
+    cardStat(S, u.side, u.id).coreDmg += dmg; S.stats[u.side].coreDmg += dmg;
     float(S, r, c, dmg ? `-${dmg} ♥` : 'BARRIÈRE', dmg ? 'damage' : 'block');
     log(S, `${name} frappe l’Invocateur : ${raw} de puissance${raw > SIEGE_CAP ? ' (plafond 2)' : ''}${barrier ? ', -1 Barrière' : ''} → <b>${dmg} dégât(s)</b>.`, w);
     if (core.hp <= 0) endGame(S, u.side);
@@ -533,11 +561,16 @@ function freeFloorsWithin(S, u, range) {
   return Object.keys(S.tiles).map(unkey).filter(([r, c]) => !unitAt(S, r, c) && !coreAt(S, r, c) && Math.abs(r - u.r) + Math.abs(c - u.c) <= range);
 }
 function useSkill(S, uid, r, c) {
+  const u = unitById(S, uid);
+  return u ? withSource(S, u.side, u.id, () => useSkillImpl(S, uid, r, c)) : useSkillImpl(S, uid, r, c);
+}
+function useSkillImpl(S, uid, r, c) {
   const st = skillState(S, uid);
   if (!st.ready) return fail(st.msg);
   const u = unitById(S, uid), P = S[u.side], sk = st.skill, name = MONSTERS[u.id].name;
   if (st.target && !skillTargets(S, uid).some(([a, b]) => a === r && b === c)) return fail('Cible hors de portée.');
   P.combosUsed.push(comboKey(sk.req)); u.skillUsed = true;
+  cardStat(S, u.side, u.id).combos++; S.stats[u.side].combos++;
   fx(S, {t: 'skill', side: u.side, id: u.id, r: u.r, c: u.c, name: sk.name});
   log(S, `${name} déclenche <b>${sk.name}</b>.`, who(u.side));
   const adjEnemies = () => visibleEnemiesAround(S, u, 1);
@@ -588,12 +621,13 @@ function effectSteps(id) {
   return [];
 }
 function effectPool(S, side, id) { const d = S[side].monsterDeck; return id === 'dragon_gate' ? d.filter(m => MONSTERS[m].family === 'Dragon') : d; }
+function effectCost(S, side, id) { return Math.max(1, EFFECTS[id].cost - ((S[side].costBonus && S[side].costBonus[id]) || 0)); }
 function canPlayEffect(S, side, handIndex) {
   const P = S[side], id = P.hand[handIndex], e = EFFECTS[id];
   if (!e) return fail('Carte introuvable.');
   if (S.over || S.side !== side) return fail('Ce n’est pas ton tour.');
   if (P.magicPlayed) return fail('Une seule carte Effet par tour.');
-  if (P.crests.magic < e.cost) return fail(`Il faut ${e.cost} ✦ pour ${e.name}.`);
+  if (P.crests.magic < effectCost(S, side, id)) return fail(`Il faut ${effectCost(S, side, id)} ✦ pour ${e.name}.`);
   if ((e.kind === 'summon' || e.kind === 'dragonSummon') && !effectPool(S, side, id).length) return fail('Aucun monstre éligible dans ton deck.');
   const first = effectSteps(id)[0];
   if (first && !effectTargets(S, side, id, first).length) return fail('Aucune cible valide pour cette carte.');
@@ -617,6 +651,10 @@ function effectTargets(S, side, id, step, allyUid) {
 }
 /* targets : liste de [r,c] dans l'ordre des étapes */
 function playEffect(S, side, handIndex, targets = []) {
+  const id = S[side].hand[handIndex];
+  return id ? withSource(S, side, id, () => playEffectImpl(S, side, handIndex, targets)) : playEffectImpl(S, side, handIndex, targets);
+}
+function playEffectImpl(S, side, handIndex, targets = []) {
   const chk = canPlayEffect(S, side, handIndex);
   if (!chk.ok) return chk;
   const P = S[side], id = P.hand[handIndex], e = EFFECTS[id], steps = effectSteps(id);
@@ -627,7 +665,8 @@ function playEffect(S, side, handIndex, targets = []) {
     if (!valid) return fail('Cible invalide.');
     if (steps[i] === 'ally') ally = unitAt(S, r, c);
   }
-  P.crests.magic -= e.cost; P.magicPlayed = true;
+  P.crests.magic -= effectCost(S, side, id); P.magicPlayed = true;
+  cardStat(S, side, id).played++; S.stats[side].effects++;
   P.discard.push(P.hand.splice(handIndex, 1)[0]);
   const [t0, t1] = targets, w = who(side), foe = t0 ? unitAt(S, t0[0], t0[1]) : null;
   const at = t0 || [S.cores[side].r, S.cores[side].c];
@@ -664,7 +703,7 @@ function endGame(S, winner) {
   log(S, winner === 'player' ? '<b>Victoire !</b> L’Invocateur rival est détruit.' : '<b>Défaite.</b> Ton Invocateur est tombé.', 'event');
 }
 
-DD.engine = {HAND_LIMIT, COLLAPSE_TURN, newUnit, addFloor, key, unkey, opp, dist, shuffle, newBattle, inBounds, isBlocked, tileAt, unitAt, unitById, coreAt, biomeAt,
+DD.engine = {HAND_LIMIT, COLLAPSE_TURN, newUnit, addFloor, facesOf, effectCost, cardStat, seeded, key, unkey, opp, dist, shuffle, newBattle, inBounds, isBlocked, tileAt, unitAt, unitById, coreAt, biomeAt,
   neighbors, adjacent, isStealthed, isFrozen, unitAtk, invocator, canDraw, drawEffect, concentrationCost, concentrate, roll,
   rollFaces, hasCombo, comboKey, isSummonTarget, summonTargets, summonRoster, summonMonster, reach, moveBudget, canMove,
   moveTargets, move, dealDamage, canAttack, attackTargets, attackPreview, attack, charge, prepareGuard, forcedMarch,

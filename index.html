@@ -33,15 +33,17 @@
       <div class="pfMain"><div class="bar"><i id="pfBar"></i></div><div class="pfRow"><span id="pfNext"></span><span id="pfXp"></span></div></div>
     </div>
     <button class="btn primary big hidden" id="mResume">Reprendre le duel</button>
-    <button class="btn primary big" id="mQuick">⚔ Duel rapide</button>
-    <div class="loadout">
-      <button class="slot" id="mArena"><small>Arène</small><b id="mArenaName"></b><span id="mArenaSize"></span></button>
-      <button class="slot" id="mInv"><small>Invocateur</small><b id="mInvName"></b><span id="mInvHp"></span></button>
+    <button class="btn primary big storyBtn" id="mStory"><span class="sbIco">📖</span><span class="sbTxt"><b>Histoire</b><small id="mStorySub"></small></span></button>
+    <button class="dailyCard" id="mDaily"><span class="dIco">📅</span><span class="grow"><b>Défi du jour</b><small id="mDailySub"></small></span><em id="mDailyStreak"></em></button>
+    <div class="modeRow">
+      <button class="modeBtn" id="mQuick"><i>⚔</i><b>Duel rapide</b><span>Rival au hasard</span></button>
+      <button class="modeBtn" id="mExp"><i>🗺</i><b>Expédition</b><span id="mExpSub"></span></button>
     </div>
-    <div class="menuTiles">
-      <button class="tileBtn" id="mTuto"><i>🎓</i><b>Tutoriel</b><span>Apprendre en jouant</span></button>
-      <button class="tileBtn" id="mCampaign"><i>◆</i><b>Campagne</b><span id="mCampSub">7 duels</span></button>
-      <button class="tileBtn" id="mDeck"><i>▣</i><b>Deck</b><span>20 cartes</span></button>
+    <div class="menuTiles four">
+      <button class="tileBtn" id="mTuto"><i>🎓</i><b>Tutoriel</b></button>
+      <button class="tileBtn" id="mCampaign"><i>◆</i><b>Campagne</b><span id="mCampSub"></span></button>
+      <button class="tileBtn" id="mDeck"><i>▣</i><b>Deck</b></button>
+      <button class="tileBtn" id="mAch"><i>🏅</i><b>Succès</b><span id="mAchSub"></span></button>
     </div>
     <nav class="menuFoot">
       <button class="linkBtn" id="mRules">Règles</button>
@@ -49,6 +51,16 @@
       <button class="linkBtn hidden" id="mInstall">Installer le jeu</button>
     </nav>
   </div>
+</section>
+
+<!-- HISTOIRE -->
+<section id="story" class="screen hidden">
+  <header class="screenHead">
+    <button class="btn small" data-back>← Menu</button>
+    <h1 class="title">Histoire</h1>
+    <span class="pill" id="stStars"></span>
+  </header>
+  <div id="stActs" class="acts"></div>
 </section>
 
 <!-- CAMPAGNE -->
@@ -131,6 +143,7 @@
 <div id="diceOverlay" class="diceOverlay hidden" aria-hidden="true">
   <div class="dicePanel panel"><div class="diceTitle" id="diceTitle"></div><div class="diceRow" id="diceRow"></div><div class="small muted">Touchez pour passer</div></div>
 </div>
+<div id="dialog" class="dialog hidden"></div>
 <div id="banner" class="banner"></div>
 <div id="toast" class="toast"></div>
 
@@ -139,6 +152,8 @@
 <script src="js/engine.js"></script>
 <script src="js/ai.js"></script>
 <script src="js/store.js"></script>
+<script src="js/story.js"></script>
+<script src="js/meta.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/ui.js"></script>
 <script>

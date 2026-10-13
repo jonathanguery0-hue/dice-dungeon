@@ -8,6 +8,20 @@ Aucune dépendance, aucune étape de compilation : ce sont de simples fichiers s
 Table d'ardoise sombre, donjon en émail coloré, laiton pour l'action principale, dés en ivoire.
 Polices : Grenze Gotisch (titres), Barlow et Barlow Condensed (interface), via Google Fonts.
 
+## Modes de jeu (V8)
+- **Histoire** : l'Acte I « Les Marais Gobelins », 4 missions avec Pépin le dé bavard. Chaque mission rapporte jusqu'à 3 étoiles :
+  gagner, réussir l'objectif bonus, gagner vite. Les actes II à IV sont annoncés.
+- **Défi du jour** : la même partie pour tout le monde le même jour (graine tirée de la date), cartes au niveau de base, score
+  et série de jours. Le bouton « Partager mon score » produit un texte à envoyer aux amis.
+- **Expédition** : 6 étages, une seule vie. Après chaque victoire, ton Invocateur récupère 2 PV et tu choisis une carte parmi 3.
+- **Duel rapide**, **Campagne** (7 duels) et **Tutoriel** comme avant.
+
+## Progression
+- **XP par carte** (60 max par duel) : ★ à ★★★★★. ★★ et ★★★★ permettent de modifier une face du dé dans l'**Atelier du dé**
+  (3 faces identiques au maximum), ★★★★★ donne +1 PV max (monstre) ou -1 ✦ (carte Effet).
+- **16 succès** dont 5 débloquent des **skins de dés** (Obsidienne, Jade, Cristal, Braise, Or).
+- Tout est sauvegardé sur l'appareil (`localStorage`).
+
 ## Apprendre à jouer
 Menu → **🎓 Tutoriel** : un premier duel guidé en 19 étapes (lancer, invoquer, se déplacer, charger,
 attaquer, cartes, tactique, siège). Il se termine en vrai duel contre l'IA.
@@ -22,10 +36,12 @@ attaquer, cartes, tactique, siège). Il se termine en vrai duel contre l'IA.
 | `js/engine.js` | **moteur de règles** : tout l'état d'un duel, sans affichage |
 | `js/ai.js` | IA du rival (passe par le moteur, mêmes règles que le joueur) |
 | `js/store.js` | sauvegardes (niveau, deck, campagne, duel en cours) |
+| `js/story.js` | mode Histoire : actes, missions, dialogues |
+| `js/meta.js` | XP par carte, atelier du dé, succès, skins, défi du jour, expédition |
 | `js/audio.js` | musique et bruitages générés (aucun fichier son) |
 | `js/ui.js` | interface : menus, deck, campagne, plateau tactile, animations |
 | `sw.js`, `manifest.webmanifest`, `icons/` | application installable et hors-ligne |
-| `tests/` | tests des règles + 400 parties IA contre IA |
+| `tests/` | tests des règles, de la progression + 400 parties IA contre IA |
 
 Tes sauvegardes de la V6 (niveau, deck, campagne) sont reprises automatiquement.
 

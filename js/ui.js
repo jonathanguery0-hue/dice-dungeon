@@ -2,7 +2,7 @@
    Lit l'état du moteur et appelle ses actions ; ne modifie jamais l'état directement. */
 (function (DD) {
 'use strict';
-const E = DD.engine, store = DD.store, audio = DD.audio;
+const E = DD.engine, store = DD.store, audio = DD.audio, meta = DD.meta;
 const {MONSTERS, EFFECTS, ALL, SKILLS, FACE, FAMILY_INFO, BIOME_INFO, SPECIAL_ICON, SPECIAL_INFO, ARENAS, INVOCATORS,
   DECK_PRESETS, CAMPAIGN_MISSIONS, CREST_KEYS, summonCost, summonTier, copyLimitFor} = DD;
 
@@ -54,42 +54,50 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sheetLock
 
 /* ---------- cartes ---------- */
 function vis(id) { return DD.visualFor(id); }
-function dieStrip(m) { return `<div class="dieStrip">${m.faces.map(f => `<i class="f-${f}">${FACE[f][0]}</i>`).join('')}</div>`; }
-function cardHTML(id, {qty = 0, locked = 0, extra = ''} = {}) {
-  const c = ALL[id], v = vis(id);
+function dieStrip(m, list) { return `<div class="dieStrip">${(list || m.faces).map(f => `<i class="f-${f}">${FACE[f][0]}</i>`).join('')}</div>`; }
+/* mine : carte de ta collection (affiche son niveau et ton dé modifié) */
+function cardHTML(id, {qty = 0, locked = 0, extra = '', mine = false} = {}) {
+  const c = ALL[id], v = vis(id), lvl = mine ? meta.cardLevel(id) : 1;
   const style = `--c1:${v.c1};--c2:${v.c2};--glow:${v.glow};--fam:${c.type === 'monster' ? DD.familyCardColor(c.family) : v.glow}`;
-  const top = c.type === 'monster'
-    ? `<span class="cTop"><span>Niv ${c.lv}</span><span class="cost">${'◇'.repeat(summonCost(c))}</span></span>`
-    : `<span class="cTop"><span>${esc(v.sigil)}</span><span class="cost mag">✦${c.cost}</span></span>`;
+  const cost = c.type === 'monster' ? `<span class="cost">${'◇'.repeat(summonCost(c))}</span>` : `<span class="cost mag">✦${c.cost - (mine && lvl >= 5 ? 1 : 0)}</span>`;
+  const top = `<span class="cTop"><span>${mine && lvl > 1 ? `<i class="cStars">${'★'.repeat(lvl)}</i>` : c.type === 'monster' ? 'Niv ' + c.lv : esc(v.sigil)}</span>${cost}</span>`;
   const bottom = c.type === 'monster'
-    ? `<span class="cStats">♥${c.hp} ⚔${c.atk} ➤${c.mov}</span>${dieStrip(c)}`
+    ? `<span class="cStats">♥${c.hp + (mine && lvl >= 5 ? 1 : 0)} ⚔${c.atk} ➤${c.mov}</span>${dieStrip(c, mine ? meta.facesOf(id) : null)}`
     : `<span class="cShort">${esc(c.short)}</span>`;
-  return `<div class="card ${c.type} ${locked ? 'locked' : ''} ${extra}" data-card="${id}" style="${style}">
+  return `<div class="card ${c.type} ${locked ? 'locked' : ''} ${lvl >= 5 ? 'lvl-gold' : lvl >= 3 ? 'lvl-silver' : ''} ${extra}" data-card="${id}" style="${style}">
     <i class="cArt art-${id}"></i>${top}<span class="cName">${esc(c.name)}</span>${bottom}
     ${qty ? `<b class="qty">×${qty}</b>` : ''}${locked ? `<span class="lock">🔒 Niv ${locked}</span>` : ''}</div>`;
+}
+function cardProgressHTML(id) {
+  const pr = meta.cardProgress(id), slots = meta.faceSlots(id), used = Object.keys(meta.data.faces[id] || {}).length;
+  const perks = [2, 3, 4, 5].map(l => `<li class="${pr.level >= l ? 'on' : ''}"><b>${'★'.repeat(l)}</b> ${esc(meta.levelPerk(id, l))}</li>`).join('');
+  return `<div class="cardProg"><div class="row"><b class="cpStars">${meta.stars(pr.level)}</b>
+    <span class="muted small">${pr.span ? `${pr.cur} / ${pr.span} XP` : 'Niveau maximum'}</span></div>
+    <div class="bar"><i style="width:${pr.pct}%"></i></div><ul class="perks">${perks}</ul>
+    ${slots ? `<p class="small">Faces modifiées : <b>${used} / ${slots}</b></p>` : ''}</div>`;
 }
 function cardDetailHTML(id) {
   const c = ALL[id];
   if (c.type === 'monster') {
     const sk = SKILLS[id], fi = FAMILY_INFO[c.family], bio = BIOME_INFO[DD.BIOME_BY_MONSTER[id]];
-    const pct = Math.round(c.faces.filter(f => f === 'summon').length / 6 * 100);
-    return `<div class="detail"><div class="detailArt">${cardHTML(id)}</div><div>
+    const pct = Math.round(meta.facesOf(id).filter(f => f === 'summon').length / 6 * 100);
+    return `<div class="detail"><div class="detailArt">${cardHTML(id, {mine: true})}</div><div>
       <div class="kicker">Monstre · ${esc(c.role)} · ${esc(c.element)}</div><h2>${esc(c.name)}</h2>
       <div class="chips"><span>Niv ${c.lv}</span><span>♥ ${c.hp}</span><span>⚔ ${c.atk}</span><span>➤ ${c.mov}</span><span>${'◇'.repeat(summonCost(c))} ${summonTier(c)}</span></div>
       <p>${esc(c.ability)}</p>
       <p class="rule"><b>Combo ${faces(sk.req)} — ${esc(sk.name)} :</b> ${esc(sk.desc)}</p>
       <p class="rule fam"><b>${fi.glyph} Famille ${esc(c.family)} :</b> ${esc(fi.rule)}</p>
       ${bio ? `<p class="rule"><b>${bio.glyph} Biome créé — ${esc(bio.name)} :</b> ${esc(bio.rule)}</p>` : ''}
-      <div class="dieLine">Dé : ${dieStrip(c)} <span class="muted">Face ◇ : ${pct} %</span></div>
+      <div class="dieLine">Dé : ${dieStrip(c, meta.facesOf(id))} <span class="muted">Face ◇ : ${pct} %</span></div>
     </div></div>`;
   }
-  return `<div class="detail"><div class="detailArt">${cardHTML(id)}</div><div>
+  return `<div class="detail"><div class="detailArt">${cardHTML(id, {mine: true})}</div><div>
     <div class="kicker">Carte Effet · coût ✦${c.cost}</div><h2>${esc(c.name)}</h2><p>${esc(c.text)}</p>
     <p class="muted small">Une seule carte Effet par tour. Main max 5 ; Concentration pour piocher.</p></div></div>`;
 }
 
 /* ---------- navigation ---------- */
-const screens = ['menu', 'campaign', 'deck', 'battle'];
+const screens = ['menu', 'story', 'campaign', 'deck', 'battle'];
 let current = 'menu';
 function show(name) {
   current = name;
@@ -98,6 +106,7 @@ function show(name) {
   audio.setMode(name === 'battle' ? 'battle' : name === 'deck' ? 'deck' : 'menu');
   if (name === 'menu') renderMenu();
   if (name === 'campaign') renderCampaign();
+  if (name === 'story') renderStory();
   if (name === 'deck') renderDeck();
 }
 $$('[data-back]').forEach(b => b.onclick = () => show('menu'));
@@ -113,12 +122,22 @@ function renderMenu() {
   $('#mTuto').classList.toggle('new', !store.settings.tutorialDone);
   const saved = store.loadBattle();
   $('#mResume').classList.toggle('hidden', !saved);
-  $('#mQuick').classList.toggle('secondary', !!saved);
   if (saved) $('#mResume').textContent = `▶ Reprendre le duel · tour ${saved.turn}`;
-  const a = ARENAS[store.settings.arena], v = INVOCATORS[store.settings.invocator];
-  $('#mArenaName').textContent = a.name; $('#mArenaSize').textContent = a.size;
-  $('#mInvName').textContent = `${v.glyph} ${v.name}`; $('#mInvHp').textContent = `${v.hp} PV`;
-  $('#mCampSub').textContent = `${store.campaign.cleared.length}/${CAMPAIGN_MISSIONS.length} · ${store.campaignRank()}`;
+  // Histoire
+  const nx = meta.storyNext();
+  $('#mStorySub').textContent = nx ? `Acte ${nx.act.num} · ${nx.act.name} · ${nx.i + 1}/${nx.act.missions.length}` : 'Acte I terminé · la suite arrive';
+  $('#mStory').classList.toggle('secondary', !!saved);
+  // Défi du jour
+  const dk = meta.dayKey(), done = meta.data.daily[dk], streak = meta.dailyStreak();
+  $('#mDaily').classList.toggle('done', !!done);
+  $('#mDailySub').textContent = done ? `Meilleur score : ${done.score} pts` : 'Pas encore joué aujourd’hui';
+  $('#mDailyStreak').textContent = streak ? `🔥 ${streak}` : '';
+  // Expédition
+  const ex = meta.data.expedition;
+  $('#mExpSub').textContent = ex ? `Étage ${ex.floor + 1}/6 · ♥${ex.hp}` : meta.data.expBest ? `Record : ${meta.data.expBest}/6` : '6 étages, 1 vie';
+  $('#mCampSub').textContent = `${store.campaign.cleared.length}/${CAMPAIGN_MISSIONS.length}`;
+  const got = Object.keys(meta.data.achievements).length;
+  $('#mAchSub').textContent = `${got}/${meta.ACH.length}`;
 }
 function pickArena() {
   const b = openSheet(`<h2>Arène du duel rapide</h2><div class="choiceList">${Object.values(ARENAS).map(a => `<button class="choice ${store.settings.arena === a.id ? 'on' : ''}" data-arena="${a.id}">
@@ -133,10 +152,12 @@ function pickInvocator() {
   }).join('')}</div>`);
   b.querySelectorAll('[data-inv]').forEach(x => x.onclick = () => { store.settings.invocator = x.dataset.inv; store.saveSettings(); closeSheet(); renderMenu(); });
 }
-$('#mArena').onclick = pickArena;
-$('#mInv').onclick = pickInvocator;
 $('#mTuto').onclick = () => startTutorial();
-$('#mQuick').onclick = () => startBattle({mode: 'quick', arenaId: store.settings.arena});
+$('#mStory').onclick = () => show('story');
+$('#mDaily').onclick = () => openDaily();
+$('#mExp').onclick = () => openExpedition();
+$('#mAch').onclick = () => openAchievements();
+$('#mQuick').onclick = () => openQuick();
 $('#mCampaign').onclick = () => show('campaign');
 $('#mDeck').onclick = () => { deckState.cards = store.loadDeck(); show('deck'); };
 $('#mRules').onclick = () => openSheet(RULES_HTML, {cls: 'wide'});
@@ -239,12 +260,32 @@ function addCard(id) {
 }
 function removeCard(id) { const i = deckState.cards.lastIndexOf(id); if (i >= 0) deckState.cards.splice(i, 1); renderDeck(); }
 function openCardInDeck(id) {
-  const n = deckState.cards.filter(x => x === id).length, open = store.isUnlocked(id);
-  const b = openSheet(`${cardDetailHTML(id)}<div class="row sheetActions">
+  const n = deckState.cards.filter(x => x === id).length, open = store.isUnlocked(id), slots = meta.faceSlots(id);
+  const b = openSheet(`${slots ? `<button class="btn primary dieCta" id="cdDie">🎲 Atelier du dé : modifier ${slots > 1 ? 'deux faces' : 'une face'}</button>` : ''}
+    ${cardDetailHTML(id)}${open ? cardProgressHTML(id) : ''}
+    <div class="row sheetActions">
     <button class="btn" id="cdRem" ${n ? '' : 'disabled'}>− Retirer</button><span class="pill">×${n} / ${copyLimitFor(id)}</span>
     <button class="btn gold" id="cdAdd" ${open ? '' : 'disabled'}>+ Ajouter</button></div>`, {cls: 'wide'});
   b.querySelector('#cdAdd').onclick = () => { addCard(id); openCardInDeck(id); };
   b.querySelector('#cdRem').onclick = () => { removeCard(id); openCardInDeck(id); };
+  const dd = b.querySelector('#cdDie'); if (dd) dd.onclick = () => editDie(id);
+}
+/* atelier du dé : choisir une face, puis le symbole qui la remplace */
+function editDie(id, sel = null) {
+  const m = MONSTERS[id], cur = meta.facesOf(id), mods = meta.data.faces[id] || {}, slots = meta.faceSlots(id);
+  const b = openSheet(`<h2>Atelier du dé</h2><p class="muted small">${esc(m.name)} · ${Object.keys(mods).length} / ${slots} face(s) modifiée(s). Maximum 3 faces identiques.</p>
+    <div class="dieEdit">${cur.map((f, i) => `<button class="dface f-${f} ${i in mods ? 'mod' : ''} ${sel === i ? 'sel' : ''}" data-i="${i}">${FACE[f][0]}</button>`).join('')}</div>
+    ${sel === null ? '<p class="center muted">Touche la face à changer.</p>' : `<p class="center">Remplacer par :</p>
+      <div class="dieEdit">${CREST_KEYS.map(k => `<button class="dface f-${k}" data-f="${k}">${FACE[k][0]}<small>${crestName[k]}</small></button>`).join('')}</div>`}
+    <div class="row sheetActions"><button class="btn ghost" id="deReset">Remettre d’origine</button><button class="btn" id="deDone">Terminé</button></div>`, {cls: 'wide'});
+  b.querySelectorAll('[data-i]').forEach(x => x.onclick = () => editDie(id, +x.dataset.i));
+  b.querySelectorAll('[data-f]').forEach(x => x.onclick = () => {
+    const err = meta.setFace(id, sel, x.dataset.f);
+    if (err) return toast(err);
+    audio.play('tap'); editDie(id); renderDeck();
+  });
+  b.querySelector('#deReset').onclick = () => { meta.resetFaces(id); editDie(id); renderDeck(); };
+  b.querySelector('#deDone').onclick = () => openCardInDeck(id);
 }
 function renderDeck() {
   const d = deckState.cards, counts = store.countBy(d);
@@ -264,7 +305,7 @@ function renderDeck() {
   const ids = Object.keys(ALL).filter(id => deckState.type === 'all' || ALL[id].type === deckState.type)
     .filter(id => deckState.family === 'all' || ALL[id].type !== 'monster' || ALL[id].family === deckState.family)
     .filter(id => ALL[id].name.toLowerCase().includes(deckState.search));
-  $('#dkCollection').innerHTML = ids.map(id => `<div class="cardCell">${cardHTML(id, {qty: counts[id] || 0, locked: store.isUnlocked(id) ? 0 : store.unlockLevelFor(id)})}
+  $('#dkCollection').innerHTML = ids.map(id => `<div class="cardCell">${cardHTML(id, {qty: counts[id] || 0, locked: store.isUnlocked(id) ? 0 : store.unlockLevelFor(id), mine: true})}
     ${store.isUnlocked(id) ? `<button class="plus" data-add="${id}" aria-label="Ajouter">+</button>` : ''}</div>`).join('');
   $$('#dkCollection [data-card]').forEach(c => c.onclick = () => openCardInDeck(c.dataset.card));
   $$('#dkCollection [data-add]').forEach(b => b.onclick = ev => { ev.stopPropagation(); addCard(b.dataset.add); });
@@ -318,12 +359,16 @@ const ui = {sel: null, mode: null, summonId: null, eff: null, pending: null, bus
 function save() { if (!tut.on) store.saveBattle(S); }
 function startBattle(opts) {
   if (opts.mode === 'tutorial') return startTutorial();
+  if (opts.mode === 'story') return startStory(opts.storyId);
+  if (opts.mode === 'daily') return startDaily();
+  if (opts.mode === 'expedition') return startExpedition();
   const deck = store.loadDeck();
-  S = E.newBattle({...opts, playerDeck: deck, invocatorId: store.settings.invocator});
+  DD.rng = null;
+  S = E.newBattle({...opts, playerDeck: deck, invocatorId: store.settings.invocator, playerCards: meta.playerCards(deck)});
   enterBattle();
   banner(S.mode === 'campaign' ? CAMPAIGN_MISSIONS[S.missionIndex].name : ARENAS[S.arenaId].name);
 }
-function resumeBattle(saved) { S = saved; S.fx = []; enterBattle(); toast('Duel repris.'); if (S.side === 'enemy') enemyTurn(); }
+function resumeBattle(saved) { S = saved; DD.rng = S.dailySeed ? E.seeded(S.dailySeed + S.phase * 7919) : null; S.fx = []; enterBattle(); toast('Duel repris.'); if (S.side === 'enemy') enemyTurn(); }
 function enterBattle() {
   Object.assign(ui, {sel: null, mode: null, summonId: null, eff: null, pending: null, busy: false, finished: false});
   show('battle');
@@ -400,7 +445,7 @@ function renderTop() {
   const mission = S.mode === 'campaign' ? CAMPAIGN_MISSIONS[S.missionIndex] : null;
   $('#pMedal').textContent = pi.glyph; $('#eMedal').textContent = ei.glyph;
   $('#pName').textContent = pi.name;
-  $('#eName').textContent = mission ? mission.rival.split(' — ')[0] : ei.name;
+  $('#eName').textContent = S.rivalName || (mission ? mission.rival.split(' — ')[0] : ei.name);
   $('#pHp').textContent = pc.hp; $('#eHp').textContent = ec.hp;
   $('#pHearts').innerHTML = hearts(pc); $('#eHearts').innerHTML = hearts(ec);
   $('#turnPill').innerHTML = `<b>${S.turn}</b><small>${S.over ? 'fin' : S.side === 'player' ? 'à toi' : 'rival'}</small>`;
@@ -483,7 +528,7 @@ function renderHand() {
   const cards = P().hand.map((id, i) => {
     const can = myTurn() && E.canPlayEffect(S, 'player', i).ok;
     const v = vis(id);
-    return `<button class="handCard ${can ? '' : 'off'}" data-hand="${i}" style="--c1:${v.c1};--c2:${v.c2};--glow:${v.glow}"><i class="hg">${v.glyph}</i><b class="hc">${EFFECTS[id].cost}</b><span>${esc(EFFECTS[id].name)}</span></button>`;
+    return `<button class="handCard ${can ? '' : 'off'}" data-hand="${i}" style="--c1:${v.c1};--c2:${v.c2};--glow:${v.glow}"><i class="hg">${v.glyph}</i><b class="hc">${E.effectCost(S, 'player', id)}</b><span>${esc(EFFECTS[id].name)}</span></button>`;
   });
   const canConc = myTurn() && !P().concentrationUsed && P().crests.magic >= cc && E.canDraw(S, 'player');
   h.innerHTML = cards.join('') + `<button class="handCard conc ${canConc ? '' : 'off'}" id="hConc"><i class="hg">+</i><b class="hc">${cc}</b><span>Piocher</span></button>`
@@ -594,7 +639,7 @@ function inspect(r, c) {
 function openHandCard(i) {
   const id = P().hand[i], chk = E.canPlayEffect(S, 'player', i);
   const b = openSheet(`${cardDetailHTML(id)}<div class="row sheetActions">
-    ${myTurn() ? `<button class="btn gold" id="hcPlay" ${chk.ok ? '' : 'disabled'}>Jouer (✦${EFFECTS[id].cost})</button>${chk.ok ? '' : `<span class="small bad">${esc(chk.msg)}</span>`}` : ''}</div>`, {cls: 'wide'});
+    ${myTurn() ? `<button class="btn gold" id="hcPlay" ${chk.ok ? '' : 'disabled'}>Jouer (✦${E.effectCost(S, 'player', id)})</button>${chk.ok ? '' : `<span class="small bad">${esc(chk.msg)}</span>`}` : ''}</div>`, {cls: 'wide'});
   const btn = b.querySelector('#hcPlay');
   if (btn) btn.onclick = () => {
     closeSheet();
@@ -681,31 +726,69 @@ async function enemyTurn() {
 }
 
 /* ----- fin du duel ----- */
-function finishBattle() {
+async function finishBattle() {
   store.clearBattle();
   if (tut.on) endTutorial(false);
-  const win = S.winner === 'player';
+  const win = S.winner === 'player', mode = S.mode;
+  DD.rng = null;
   audio.play(win ? 'win' : 'lose');
-  let first = false, extra = '';
-  if (S.mode === 'campaign' && win) {
+  const story = mode === 'story' ? storyMission(S.storyId) : null;
+  if (story) await dialogue(win ? story.m.win : story.m.lose);
+  let first = false, campaignReward = '';
+  if (mode === 'campaign' && win) {
     first = store.clearMission(S.missionIndex, S.turn);
-    extra = first ? `<p class="rule">Récompense : ${esc(CAMPAIGN_MISSIONS[S.missionIndex].reward)}</p>` : '';
+    if (first) campaignReward = CAMPAIGN_MISSIONS[S.missionIndex].reward;
   }
-  const xp = store.awardXp(win, S.mode, first, S.turn);
-  const hasNext = S.mode === 'campaign' && win && S.missionIndex < CAMPAIGN_MISSIONS.length - 1;
-  const b = openSheet(`<div class="result ${win ? 'win' : 'lose'}"><h1>${win ? 'VICTOIRE' : 'DÉFAITE'}</h1>
-    <p>${win ? 'L’Invocateur rival est détruit.' : 'Ton Invocateur est tombé.'} Duel terminé au tour ${S.turn}.</p>${extra}
-    <p class="xp">+${xp.gained} XP · Niveau ${xp.after}${xp.after > xp.before ? ` <b>— niveau supérieur !</b>` : ''}</p>
-    ${xp.unlocks.length ? `<p class="rule">Débloqué : ${xp.unlocks.join(' · ')}</p>` : ''}
-    <div class="row center">${hasNext ? '<button class="btn gold" id="rNext">Duel suivant ▶</button>' : ''}
-    <button class="btn ${hasNext ? '' : 'gold'}" id="rAgain">Rejouer</button><button class="btn ghost" id="rMenu">Menu</button></div></div>`, {locked: true});
-  const again = {mode: S.mode, missionIndex: S.missionIndex, arenaId: S.arenaId};
-  b.querySelector('#rAgain').onclick = () => { closeSheet(); startBattle(again); };
-  b.querySelector('#rMenu').onclick = () => { closeSheet(); show(S.mode === 'campaign' ? 'campaign' : 'menu'); };
-  const nx = b.querySelector('#rNext');
-  if (nx) nx.onclick = () => { closeSheet(); startBattle({mode: 'campaign', missionIndex: again.missionIndex + 1}); };
-}
+  const st = story ? meta.storyResult(story.m, S) : null;
+  if (st) first = st.first;
+  let daily = null;
+  if (mode === 'daily') { const score = meta.dailyScore(S); daily = {score, ...meta.dailyRecord(S.dailyKey, score, win, S.turn), streak: meta.dailyStreak()}; }
+  const exp = mode === 'expedition' ? meta.expAfterBattle(S) : null;
+  const xp = store.awardXp(win, mode === 'campaign' || mode === 'story' ? 'campaign' : 'quick', first, S.turn);
+  const gains = meta.cardXpFromDuel(S), ups = meta.addCardXp(gains);
+  meta.recordDuel(win);
+  const achs = meta.checkAchievements({S, win, st: S.stats.player});
+  const pr = store.xpProgress();
 
+  const parts = [];
+  if (st) {
+    const labels = ['Gagner le duel', story.m.bonus.text, `Gagner en ${story.m.fastTurns} tours ou moins`];
+    parts.push(`<div class="starRow">${labels.map((l, i) => `<div class="${st.got[i] ? 'on' : ''}"><i>★</i><span>${esc(l)}</span></div>`).join('')}</div>`);
+  }
+  if (daily) parts.push(`<div class="scoreBox"><b>${daily.score}</b><span>points${daily.best ? ' · record du jour !' : ` · record : ${daily.prev}`}</span>${daily.streak ? `<em>🔥 Série de ${daily.streak} jour${daily.streak > 1 ? 's' : ''}</em>` : ''}</div>`);
+  if (exp) parts.push(`<p class="rule fam">${exp.over ? (exp.win ? '<b>Expédition réussie !</b> Les 6 étages sont à toi.' : `<b>Expédition terminée</b> à l’étage ${exp.reached + 1}. Record : ${meta.data.expBest} étage(s) franchi(s).`) : `<b>Étage ${exp.floor}/6 franchi.</b> Ton Invocateur récupère 2 PV (♥ ${exp.hp}).`}</p>`);
+  if (campaignReward) parts.push(`<p class="rule">Récompense : ${esc(campaignReward)}</p>`);
+  parts.push(`<div class="xpLine"><span>+${xp.gained} XP</span><b>Niveau ${xp.after}</b>${xp.after > xp.before ? '<em>niveau supérieur !</em>' : ''}<div class="bar"><i style="width:${pr.pct}%"></i></div></div>`);
+  const rows = Object.entries(gains).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  if (rows.length) parts.push(`<h3 class="resH">Tes cartes</h3><div class="xpRows">${rows.map(([id, g]) => {
+    const p = meta.cardProgress(id), up = ups.find(u => u.id === id), v = vis(id);
+    return `<div class="xpRow ${up ? 'up' : ''}"><i class="tok" style="--c1:${v.c1};--c2:${v.c2};--glow:${v.glow}">${v.glyph}</i>
+      <div class="grow"><div class="row"><b>${esc(ALL[id].name)}</b><span class="cStarsTxt">${'★'.repeat(p.level)}</span><em>+${g}</em></div>
+      <div class="bar"><i style="width:${p.pct}%"></i></div>${up ? `<small>Niveau ${'★'.repeat(up.after)} : ${esc(meta.levelPerk(id, up.after))}</small>` : ''}</div></div>`;
+  }).join('')}</div>`);
+  if (achs.length) parts.push(`<h3 class="resH">Succès débloqués</h3><div class="achChips">${achs.map(a => `<span><i>${a.icon}</i>${esc(a.name)}${a.skin ? ` · dés ${esc(meta.SKINS[a.skin].name)}` : ''}</span>`).join('')}</div>`);
+  if (xp.unlocks.length) parts.push(`<p class="rule">Débloqué : ${xp.unlocks.join(' · ')}</p>`);
+
+  const btns = [];
+  const nextStory = story && win ? story.act.missions[story.i + 1] : null;
+  if (nextStory) btns.push('<button class="btn primary" id="rNextStory">Mission suivante ▶</button>');
+  if (mode === 'campaign' && win && S.missionIndex < CAMPAIGN_MISSIONS.length - 1) btns.push('<button class="btn primary" id="rNext">Duel suivant ▶</button>');
+  if (daily) btns.push('<button class="btn primary" id="rShare">Partager mon score</button>');
+  if (exp && !exp.over) btns.push('<button class="btn primary" id="rDraft">Choisir une carte ▶</button>');
+  if (!(exp && !exp.over)) btns.push(`<button class="btn ${btns.length ? '' : 'primary'}" id="rAgain">${mode === 'daily' ? 'Réessayer' : mode === 'expedition' ? 'Nouvelle expédition' : 'Rejouer'}</button>`);
+  btns.push(`<button class="btn ghost" id="rMenu">${story ? 'Histoire' : 'Menu'}</button>`);
+  const b = openSheet(`<div class="result ${win ? 'win' : 'lose'}"><h1>${win ? 'VICTOIRE' : 'DÉFAITE'}</h1>
+    <p class="muted">${win ? 'L’Invocateur rival est détruit' : 'Ton Invocateur est tombé'} · tour ${S.turn}</p>${parts.join('')}
+    <div class="row center resBtns">${btns.join('')}</div></div>`, {locked: true});
+  const again = {mode, missionIndex: S.missionIndex, arenaId: S.arenaId, storyId: S.storyId};
+  const on = (sel, fn) => { const x = b.querySelector(sel); if (x) x.onclick = fn; };
+  on('#rAgain', () => { closeSheet(); if (mode === 'expedition') { meta.expStart(store.settings.invocator); } startBattle(again); });
+  on('#rMenu', () => { closeSheet(); show(story ? 'story' : mode === 'campaign' ? 'campaign' : 'menu'); });
+  on('#rNext', () => { closeSheet(); startBattle({mode: 'campaign', missionIndex: again.missionIndex + 1}); });
+  on('#rNextStory', () => { closeSheet(); startStory(nextStory.id); });
+  on('#rShare', () => shareDaily(win, daily));
+  on('#rDraft', () => openDraft());
+}
 /* ----- animations ----- */
 function tileCenter(r, c) {
   const el = tileEl(r, c), wrap = $('#boardWrap');
@@ -813,6 +896,180 @@ Touche deux fois pour confirmer. <b>Charger</b> dépense 1 ⚔ : +1 dégât (max
 <p>Tour 4 : pluie de coffres. Tour 7 : tempête de dés (4 dés). Tour 10 : <b>Mort subite</b> (Invocateurs -1 PV, monstres +1 ATQ). Tour 15 : <b>Effondrement</b> — chaque Invocateur perd 1 PV au début de son tour.</p>
 <p class="muted small">Projet fan non commercial inspiré de Dungeon Dice Monsters. Monstres, illustrations et sons originaux.</p>`;
 
+
+/* =================== DIALOGUES =================== */
+function dialogue(lines) {
+  return new Promise(res => {
+    if (!lines || !lines.length) return res();
+    let i = 0;
+    const ov = $('#dialog');
+    const step = () => {
+      if (i >= lines.length) { ov.classList.add('hidden'); ov.onclick = null; return res(); }
+      const [who, text] = lines[i++], s = DD.SPEAKERS[who];
+      ov.innerHTML = `<div class="dlgPanel ${who === 'pepin' ? 'ally' : 'foe'}"><div class="dlgWho"><span class="dlgFace" style="--c:${s.color}">${s.glyph}</span>
+        <div class="grow"><b>${esc(s.name)}</b><small>${esc(s.role)}</small></div><button class="linkBtn" id="dlgSkip">Passer</button></div>
+        <p>${esc(text)}</p><span class="dlgNext">${i < lines.length ? 'Touche pour continuer ▶' : 'Touche pour jouer ▶'}</span></div>`;
+      ov.querySelector('#dlgSkip').onclick = e => { e.stopPropagation(); i = lines.length; step(); };
+      audio.play('tap');
+    };
+    ov.onclick = step;
+    ov.classList.remove('hidden');
+    step();
+  });
+}
+
+/* =================== HISTOIRE =================== */
+function storyMission(id) {
+  for (const act of DD.STORY.acts) { const i = act.missions.findIndex(m => m.id === id); if (i >= 0) return {act, i, m: act.missions[i]}; }
+  return null;
+}
+function starIcons(n) { return [0, 1, 2].map(i => `<i class="${i < n ? 'on' : ''}">★</i>`).join(''); }
+function renderStory() {
+  const total = DD.STORY.acts.filter(a => !a.soon).reduce((n, a) => n + a.missions.length * 3, 0);
+  const got = DD.STORY.acts.reduce((n, a) => n + meta.storyStars(a.id), 0);
+  $('#stStars').textContent = `★ ${got}/${total}`;
+  $('#stActs').innerHTML = DD.STORY.acts.map(act => act.soon
+    ? `<article class="act soon" style="--act:${act.color}"><div class="actHead"><span class="actNum">Acte ${act.num}</span><h2>${esc(act.name)}</h2></div>
+        <p class="muted">${esc(act.blurb)}</p><span class="pill">Bientôt</span></article>`
+    : `<article class="act" style="--act:${act.color}"><div class="actHead"><span class="actNum">Acte ${act.num}</span><h2>${esc(act.name)}</h2></div>
+        <p class="muted">${esc(act.blurb)}</p>
+        <div class="path">${act.missions.map((m, i) => {
+          const open = meta.storyUnlocked(act, i), done = meta.storyMissionCleared(m.id), sp = DD.SPEAKERS[m.rival];
+          return `<button class="node ${open ? '' : 'locked'} ${done ? 'done' : ''} ${m.boss ? 'boss' : ''}" data-story="${m.id}" ${open ? '' : 'disabled'}>
+            <span class="nodeFace" style="--c:${sp.color}">${open ? sp.glyph : '🔒'}</span>
+            <span class="grow"><b>${i + 1}. ${esc(m.title)}</b><small>${esc(sp.name)} · ${esc(ARENAS[m.arena].name)}${m.boss ? ' · Boss' : ''}</small></span>
+            <span class="nodeStars">${starIcons(meta.data.story.stars[m.id] || 0)}</span></button>`;
+        }).join('')}</div></article>`).join('');
+  $$('[data-story]').forEach(b => b.onclick = () => openMission(b.dataset.story));
+}
+function openMission(id) {
+  const {act, m} = storyMission(id), sp = DD.SPEAKERS[m.rival], n = meta.data.story.stars[m.id] || 0;
+  const obj = ['Gagner le duel', m.bonus.text, `Gagner en ${m.fastTurns} tours ou moins`];
+  const b = openSheet(`<div class="kicker">Acte ${act.num} · ${esc(act.name)}</div><h2>${esc(m.title)}</h2>
+    <div class="rivalLine"><span class="dlgFace" style="--c:${sp.color}">${sp.glyph}</span><div><b>${esc(sp.name)}</b><small>${esc(sp.role)}</small></div></div>
+    <p class="muted small">${esc(ARENAS[m.arena].name)} (${ARENAS[m.arena].size}) · Invocateur rival ♥${m.enemyHp}</p>
+    <div class="objList">${obj.map((o, i) => `<div class="${i < n ? 'on' : ''}"><i>${'★'.repeat(i + 1)}</i><span>${esc(o)}</span></div>`).join('')}</div>
+    <div class="row sheetActions"><button class="btn ghost" id="msBack">Retour</button><button class="btn primary" id="msGo">Combattre</button></div>`);
+  b.querySelector('#msBack').onclick = closeSheet;
+  b.querySelector('#msGo').onclick = () => { closeSheet(); startStory(id); };
+}
+async function startStory(id) {
+  const {act, m} = storyMission(id), sp = DD.SPEAKERS[m.rival], deck = store.loadDeck();
+  DD.rng = null;
+  S = E.newBattle({mode: 'story', arenaId: m.arena, enemyPresetKey: m.preset, enemyDeck: m.enemyDeck, enemyHp: m.enemyHp, enemyHand: m.enemyHand, enemyDice: m.enemyDice,
+    rivalName: sp.name, intro: `<b>Acte ${act.num} — ${m.title}</b> · Objectif bonus : ${m.bonus.text}.`,
+    playerDeck: deck, invocatorId: store.settings.invocator, playerCards: meta.playerCards(deck)});
+  S.storyId = m.id;
+  enterBattle();
+  await dialogue(m.intro);
+  banner(m.title);
+}
+
+/* =================== DÉFI DU JOUR =================== */
+function openDaily() {
+  const d = meta.dailySetup(), rec = meta.data.daily[d.key], streak = meta.dailyStreak(), inv = INVOCATORS[d.invocatorId];
+  const date = new Date().toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'});
+  const b = openSheet(`<div class="kicker">Défi du jour · ${esc(date)}</div><h2>Même défi pour tout le monde</h2>
+    <p class="muted small">Même arène, même deck, mêmes dés au départ. Cartes au niveau de base : seul ton talent compte.</p>
+    <div class="dailyGrid"><div><small>Arène</small><b>${esc(ARENAS[d.arenaId].name)}</b></div><div><small>Ton deck</small><b>${esc(DECK_PRESETS[d.playerPreset].name)}</b></div>
+      <div><small>Ton Invocateur</small><b>${inv.glyph} ${esc(inv.name)}</b></div><div><small>Le rival joue</small><b>${esc(DECK_PRESETS[d.enemyPreset].name)}</b></div></div>
+    <p class="small">Score : victoire 1000 pts, + bonus de rapidité, de PV restants et de monstres détruits.</p>
+    <div class="row"><span class="pill">${rec ? `Ton record : ${rec.score} pts` : 'Pas encore joué'}</span>${streak ? `<span class="pill">🔥 Série : ${streak} jour${streak > 1 ? 's' : ''}</span>` : ''}</div>
+    <div class="row sheetActions"><button class="btn ghost" id="dyBack">Retour</button><button class="btn primary" id="dyGo">${rec ? 'Retenter' : 'Jouer le défi'}</button></div>`);
+  b.querySelector('#dyBack').onclick = closeSheet;
+  b.querySelector('#dyGo').onclick = () => { closeSheet(); startDaily(); };
+}
+function startDaily() {
+  const d = meta.dailySetup();
+  DD.rng = E.seeded(d.seed);
+  S = E.newBattle({mode: 'daily', arenaId: d.arenaId, enemyPresetKey: d.enemyPreset, playerDeck: [...DECK_PRESETS[d.playerPreset].deck],
+    invocatorId: d.invocatorId, rivalName: 'Rival du jour', intro: '<b>Défi du jour</b> · même partie pour tout le monde aujourd’hui.'});
+  S.dailyKey = d.key; S.dailySeed = d.seed;
+  enterBattle();
+  banner('Défi du jour');
+}
+async function shareDaily(win, daily) {
+  const date = new Date().toLocaleDateString('fr-FR');
+  const text = `🎲 Dice Dungeon — Défi du ${date}\n${win ? `Victoire en ${S.turn} tours` : 'Défaite honorable'} · ${daily.score} pts${daily.streak ? ` · 🔥${daily.streak}` : ''}\nÀ toi de battre ça !`;
+  const url = location.protocol.startsWith('http') && !location.hostname.endsWith('claude.ai') ? location.origin + location.pathname : '';
+  try { if (navigator.share) { await navigator.share({title: 'Dice Dungeon', text, url: url || undefined}); return; } } catch (e) { if (e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text + (url ? '\n' + url : '')); toast('Score copié : colle-le à tes amis !'); }
+  catch (e) { openSheet(`<h2>Ton score</h2><p class="muted small">Copie ce texte pour le partager :</p><pre class="shareText">${esc(text + (url ? '\n' + url : ''))}</pre>`); }
+}
+
+/* =================== EXPÉDITION =================== */
+function openExpedition() {
+  const e = meta.data.expedition;
+  const floors = meta.EXP_FLOORS.map((f, i) => `<li class="${e && i < e.floor ? 'done' : e && i === e.floor ? 'cur' : ''}">${i + 1}. ${esc(f.name)}${f.boss ? ' · Boss' : ''}</li>`).join('');
+  const b = openSheet(`<div class="kicker">Mode Expédition</div><h2>Descends les 6 étages</h2>
+    <p class="muted small">Tu pars avec un petit deck. Après chaque victoire : ton Invocateur récupère 2 PV et tu choisis une nouvelle carte. Une défaite met fin à l’expédition.</p>
+    <ol class="floors">${floors}</ol>
+    ${e ? `<div class="row"><span class="pill">♥ ${e.hp}/${e.maxHp}</span><span class="pill">${e.deck.length} cartes</span><span class="pill">${INVOCATORS[e.invocatorId].glyph} ${esc(INVOCATORS[e.invocatorId].name)}</span></div>`
+      : `<p class="small">Invocateur : <b>${INVOCATORS[store.settings.invocator].glyph} ${esc(INVOCATORS[store.settings.invocator].name)}</b> · Record : ${meta.data.expBest ? meta.data.expBest + ' étage(s) franchi(s)' : 'aucun'}</p>`}
+    <div class="row sheetActions">${e ? '<button class="btn ghost" id="exQuit">Abandonner</button>' : '<button class="btn ghost" id="exBack">Retour</button>'}
+      <button class="btn primary" id="exGo">${e ? `Étage ${e.floor + 1} ▶` : 'Partir en expédition'}</button></div>`);
+  const on = (s, f) => { const x = b.querySelector(s); if (x) x.onclick = f; };
+  on('#exBack', closeSheet);
+  on('#exQuit', () => { meta.expAbandon(); closeSheet(); renderMenu(); toast('Expédition abandonnée.'); });
+  on('#exGo', () => { closeSheet(); if (!meta.data.expedition) meta.expStart(store.settings.invocator); if (meta.data.expedition.picks) openDraft(); else startExpedition(); });
+}
+function startExpedition() {
+  const e = meta.data.expedition;
+  if (!e) return openExpedition();
+  const f = meta.EXP_FLOORS[e.floor], keys = DD.AI_PRESET_KEYS;
+  DD.rng = null;
+  S = E.newBattle({mode: 'expedition', arenaId: f.boss ? 'nexus' : ['quick', 'grand', 'caldera', 'nexus'][Math.floor(Math.random() * 4)],
+    enemyPresetKey: f.boss ? 'balanced' : keys[Math.floor(Math.random() * keys.length)], enemyHp: f.hp, enemyHand: f.hand,
+    playerDeck: e.deck, invocatorId: e.invocatorId, playerHp: e.hp, playerMaxHp: e.maxHp, playerCards: meta.playerCards(e.deck),
+    rivalName: f.boss ? 'Gardien de l’Étage' : f.name, intro: `<b>Expédition · étage ${e.floor + 1}/6</b> — ${f.name}.`});
+  enterBattle();
+  banner(`Étage ${e.floor + 1} · ${f.name}`);
+}
+function openDraft() {
+  const e = meta.data.expedition;
+  if (!e || !e.picks) return startExpedition();
+  const b = openSheet(`<div class="kicker">Expédition · étage ${e.floor + 1} en vue</div><h2>Choisis une carte</h2>
+    <p class="muted small">Elle rejoint ton deck pour le reste de l’expédition.</p>
+    <div class="cardGrid draft">${e.picks.map(id => `<div class="cardCell">${cardHTML(id, {mine: true})}<button class="btn primary small" data-pick="${id}">Prendre</button></div>`).join('')}</div>
+    <div class="row sheetActions"><button class="btn ghost" id="drSkip">Ne rien prendre</button></div>`, {locked: true, cls: 'wide'});
+  b.querySelectorAll('[data-pick]').forEach(x => x.onclick = () => { meta.expPick(x.dataset.pick); closeSheet(); startExpedition(); });
+  b.querySelectorAll('.card').forEach(c => c.onclick = () => openSheet(cardDetailHTML(c.dataset.card), {cls: 'wide', onClose: () => setTimeout(openDraft)}));
+  b.querySelector('#drSkip').onclick = () => { meta.expPick(null); closeSheet(); startExpedition(); };
+}
+
+/* =================== DUEL RAPIDE =================== */
+function openQuick() {
+  const b = openSheet(`<h2>Duel rapide</h2><p class="muted small">Un rival au hasard, avec ton deck.</p>
+    <h3>Arène</h3><div class="choiceList">${Object.values(ARENAS).map(a => `<button class="choice ${store.settings.arena === a.id ? 'on' : ''}" data-arena="${a.id}"><b>${esc(a.name)}</b><em>${a.size}</em><span>${esc(a.desc)}</span></button>`).join('')}</div>
+    <h3>Ton Invocateur</h3><div class="choiceList">${Object.values(INVOCATORS).map(v => {
+      const open = store.isInvocatorUnlocked(v.id);
+      return `<button class="choice ${store.settings.invocator === v.id ? 'on' : ''}" data-inv="${v.id}" ${open ? '' : 'disabled'}><b>${open ? v.glyph : '🔒'} ${esc(v.name)}</b><em>${v.hp} PV</em><span>${open ? esc(v.passive) : 'Niveau ' + store.unlockLevelFor(v.id, 'invocator')}</span></button>`;
+    }).join('')}</div>
+    <div class="row sheetActions"><button class="btn ghost" id="qBack">Retour</button><button class="btn primary" id="qGo">⚔ Lancer le duel</button></div>`, {cls: 'wide'});
+  b.querySelectorAll('[data-arena]').forEach(x => x.onclick = () => { store.settings.arena = x.dataset.arena; store.saveSettings(); openQuick(); });
+  b.querySelectorAll('[data-inv]').forEach(x => x.onclick = () => { store.settings.invocator = x.dataset.inv; store.saveSettings(); openQuick(); });
+  b.querySelector('#qBack').onclick = closeSheet;
+  b.querySelector('#qGo').onclick = () => { closeSheet(); startBattle({mode: 'quick', arenaId: store.settings.arena}); };
+}
+
+/* =================== SUCCÈS & DÉS =================== */
+function applySkin() { document.body.dataset.skin = meta.data.skin || 'ivory'; }
+function openAchievements() {
+  const list = meta.ACH.map(a => {
+    const d = meta.data.achievements[a.id];
+    return `<div class="ach ${d ? 'on' : ''}"><i>${d ? a.icon : '🔒'}</i><div class="grow"><b>${esc(a.name)}</b><small>${esc(a.desc)}${a.skin ? ` · récompense : dés ${esc(meta.SKINS[a.skin].name)}` : ''}</small></div>${d ? '<span class="ok">✓</span>' : ''}</div>`;
+  }).join('');
+  const skins = Object.entries(meta.SKINS).map(([k, s]) => {
+    const open = meta.skinUnlocked(k);
+    return `<button class="skin ${meta.data.skin === k ? 'on' : ''}" data-skin="${k}" ${open ? '' : 'disabled'}><span class="sw" data-skin-preview="${k}"><i class="f-summon">◇</i><i class="f-attack">⚔</i><i class="f-magic">✦</i></span>
+      <b>${open ? esc(s.name) : '🔒 ' + esc(s.name)}</b><small>${esc(s.desc)}</small></button>`;
+  }).join('');
+  const got = Object.keys(meta.data.achievements).length;
+  const b = openSheet(`<h2>Succès</h2><p class="muted small">${got} / ${meta.ACH.length} débloqués · ${meta.data.totals.wins} victoire(s)</p>
+    <h3>Tes dés</h3><div class="skins">${skins}</div><h3>Défis</h3><div class="achList">${list}</div>`, {cls: 'wide'});
+  b.querySelectorAll('[data-skin]').forEach(x => x.onclick = () => { meta.setSkin(x.dataset.skin); applySkin(); openAchievements(); });
+}
+applySkin();
 
 /* =================== TUTORIEL =================== */
 /* Un vrai duel, préparé à l'avance (lancer imposé, Gobelin rival à portée), guidé étape par étape.
