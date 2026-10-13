@@ -1,6 +1,6 @@
 // Service worker : met le jeu en cache pour qu'il fonctionne hors-ligne.
 // Changer VERSION à chaque mise en ligne pour que les joueurs reçoivent la nouvelle version.
-const VERSION = 'dice-dungeon-v8.0.1';
+const VERSION = 'dice-dungeon-v8.1.0';
 const FILES = ['./', './index.html', './manifest.webmanifest', './css/style.css',
   './js/data.js', './js/art.js', './js/engine.js', './js/ai.js', './js/store.js', './js/story.js', './js/meta.js', './js/audio.js', './js/ui.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];

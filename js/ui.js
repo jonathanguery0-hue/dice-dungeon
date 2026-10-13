@@ -103,7 +103,7 @@ function show(name) {
   current = name;
   for (const s of screens) $('#' + s).classList.toggle('hidden', s !== name);
   window.scrollTo(0, 0);
-  audio.setMode(name === 'battle' ? 'battle' : name === 'deck' ? 'deck' : 'menu');
+  audio.setMode(name === 'battle' ? 'battle' : name === 'deck' ? 'deck' : name === 'story' ? 'goblin' : 'menu');
   if (name === 'menu') renderMenu();
   if (name === 'campaign') renderCampaign();
   if (name === 'story') renderStory();
@@ -185,11 +185,24 @@ function openSettings(inBattle) {
       <button class="btn" data-a="full">⛶ Plein écran</button>
       <button class="btn red" data-a="quit">⚑ Abandonner le duel</button></div>` : ''}
     <div class="setRow"><span>Son</span><button class="btn small" data-a="mute">${p.muted ? '🔇 Coupé' : '🔊 Activé'}</button></div>
-    <div class="setRow"><span>Volume</span><input type="range" min="0" max="100" value="${Math.round(p.volume * 100)}" data-a="vol"></div>
+    <div class="setRow"><span>Volume général</span><input type="range" min="0" max="100" value="${Math.round(p.volume * 100)}" data-a="vol"></div>
+    <div class="setRow"><span>Musique</span><input type="range" min="0" max="100" value="${Math.round(p.music * 100)}" data-a="mus"></div>
+    <div class="setRow"><span>Effets sonores</span><input type="range" min="0" max="100" value="${Math.round(p.sfx * 100)}" data-a="sfx"></div>
+    ${inBattle ? '' : `<div class="setRow col"><span>Juke-box</span><div class="juke">${Object.entries(audio.THEMES).map(([k, th]) => `<button class="btn small ghost" data-theme="${k}">♪ ${esc(th.title)}</button>`).join('')}
+      <button class="btn small ghost" data-fan="win">♪ Fanfare de victoire</button><button class="btn small ghost" data-fan="lose">♪ Défaite</button></div></div>`}
     <div class="setRow"><span>Vibrations</span><button class="btn small" data-a="vib">${st.vibrate ? 'Activées' : 'Désactivées'}</button></div>
     <div class="setRow"><span>Vitesse du rival</span><button class="btn small" data-a="speed">${st.speed > 1 ? 'Rapide' : 'Normale'}</button></div>`);
   body.querySelector('[data-a=mute]').onclick = () => { audio.setMuted(!p.muted); openSettings(inBattle); };
   body.querySelector('[data-a=vol]').oninput = e => audio.setVolume(e.target.value / 100);
+  body.querySelector('[data-a=mus]').oninput = e => audio.setMusic(e.target.value / 100);
+  body.querySelector('[data-a=sfx]').oninput = e => { audio.setSfx(e.target.value / 100); };
+  body.querySelector('[data-a=sfx]').onchange = () => audio.play('dice');
+  body.querySelectorAll('[data-theme]').forEach(x => x.onclick = () => {
+    audio.setPreview(x.dataset.theme); audio.setIntensity(2);
+    body.querySelectorAll('[data-theme]').forEach(y => y.classList.toggle('on', y === x));
+  });
+  body.querySelectorAll('[data-fan]').forEach(x => x.onclick = () => audio.play(x.dataset.fan));
+  sheetOnClose = () => { audio.setPreview(null); audio.setMode(current === 'story' ? 'goblin' : current === 'deck' ? 'deck' : current === 'battle' ? 'battle' : 'menu'); };
   body.querySelector('[data-a=vib]').onclick = () => { st.vibrate = !st.vibrate; store.saveSettings(); openSettings(inBattle); };
   body.querySelector('[data-a=speed]').onclick = () => { st.speed = st.speed > 1 ? 1 : 2; store.saveSettings(); openSettings(inBattle); };
   if (!inBattle) return;
@@ -450,7 +463,11 @@ function renderTop() {
   $('#pHearts').innerHTML = hearts(pc); $('#eHearts').innerHTML = hearts(ec);
   $('#turnPill').innerHTML = `<b>${S.turn}</b><small>${S.over ? 'fin' : S.side === 'player' ? 'à toi' : 'rival'}</small>`;
   $('#turnPill').className = 'turnPill ' + (S.side === 'player' ? 'mine' : 'theirs') + (S.turn >= 10 ? ' danger' : '');
-  audio.setMode(S.turn >= 10 || pc.hp <= 2 || ec.hp <= 2 ? 'tension' : 'battle');
+  // musique : polka des marais en Histoire, gigue en duel, thème de tension en fin de partie
+  const late = S.turn >= 10 || pc.hp <= 2 || ec.hp <= 2;
+  audio.setMode(late ? 'tension' : S.mode === 'story' ? 'goblin' : 'battle');
+  const onBoard = S.units.length;
+  audio.setIntensity(onBoard === 0 ? 0 : onBoard >= 4 || S.turn >= 5 || pc.hp < pc.maxHp || ec.hp < ec.maxHp ? 2 : 1);
 }
 function renderCrests() {
   const c = P().crests, faces = E.rollFaces(S, 'player');
@@ -769,6 +786,8 @@ async function finishBattle() {
   if (achs.length) parts.push(`<h3 class="resH">Succès débloqués</h3><div class="achChips">${achs.map(a => `<span><i>${a.icon}</i>${esc(a.name)}${a.skin ? ` · dés ${esc(meta.SKINS[a.skin].name)}` : ''}</span>`).join('')}</div>`);
   if (xp.unlocks.length) parts.push(`<p class="rule">Débloqué : ${xp.unlocks.join(' · ')}</p>`);
 
+  if (st) st.got.forEach((g, i) => { if (g) setTimeout(() => audio.play('star'), 900 + i * 220); });
+  if (ups.length || xp.after > xp.before) setTimeout(() => audio.play('level'), 1700);
   const btns = [];
   const nextStory = story && win ? story.act.missions[story.i + 1] : null;
   if (nextStory) btns.push('<button class="btn primary" id="rNextStory">Mission suivante ▶</button>');

@@ -88,7 +88,7 @@ const settings = Object.assign({arena: readRaw(KEYS.arena) || 'grand', invocator
 if (!DD.ARENAS[settings.arena]) settings.arena = 'grand';
 if (!INVOCATORS[settings.invocator] || !isInvocatorUnlocked(settings.invocator)) settings.invocator = 'aegis';
 function saveSettings() { write(KEYS.settings, settings); }
-const audioPref = Object.assign({muted: false, volume: .42}, read(KEYS.audio, {}));
+const audioPref = Object.assign({muted: false, volume: .8, music: .7, sfx: .85}, read(KEYS.audio, {}));
 function saveAudio() { write(KEYS.audio, audioPref); }
 function saveBattle(S) { if (!S || S.over) return remove(KEYS.battle); write(KEYS.battle, {...S, fx: []}); }
 function loadBattle() { const S = read(KEYS.battle, null); return S && S.v === 7 && !S.over ? S : null; }
