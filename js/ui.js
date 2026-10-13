@@ -339,16 +339,21 @@ const name = u => MONSTERS[u.id].name;
 function disp(r, c) { return ui.transpose ? {row: S.cols - c, col: r + 1} : {row: r + 1, col: c + 1}; }
 function layoutBoard() {
   if (!S) return;
-  const wrap = $('#boardWrap'), W = wrap.clientWidth - 8, H = wrap.clientHeight - 8;
+  const wrap = $('#boardWrap'), b = $('#board');
   const portrait = innerHeight > innerWidth;
   if (ui.transpose !== (portrait && S.cols > S.rows)) { ui.transpose = portrait && S.cols > S.rows; renderBoard(); }
-  const dc = ui.transpose ? S.rows : S.cols, dr = ui.transpose ? S.cols : S.rows, gap = 3;
-  ui.tile = Math.max(28, Math.min(76, Math.floor(Math.min((W - gap * (dc - 1)) / dc, (H - gap * (dr - 1)) / dr))));
-  const b = $('#board');
+  // espace réellement disponible : on retire les marges du conteneur et du cadre du plateau
+  const sc = getComputedStyle($('#boardScroll')), bs = getComputedStyle(b);
+  const padX = parseFloat(sc.paddingLeft) * 2 + parseFloat(bs.paddingLeft) * 2, padY = parseFloat(sc.paddingTop) * 2 + parseFloat(bs.paddingTop) * 2;
+  const gap = parseFloat(bs.columnGap) || 3;
+  const dc = ui.transpose ? S.rows : S.cols, dr = ui.transpose ? S.cols : S.rows;
+  const W = wrap.clientWidth - padX, H = wrap.clientHeight - padY;
+  ui.tile = Math.max(20, Math.min(76, Math.floor(Math.min((W - gap * (dc - 1)) / dc, (H - gap * (dr - 1)) / dr))));
   b.style.setProperty('--ts', ui.tile + 'px');
   b.style.gridTemplateColumns = `repeat(${dc}, ${ui.tile}px)`;
   b.style.gridTemplateRows = `repeat(${dr}, ${ui.tile}px)`;
   b.classList.toggle('small', ui.tile < 40);
+  b.classList.toggle('tiny', ui.tile < 30);
 }
 function scrollToCore() {
   const sc = $('#boardScroll'), el = tileEl(S.cores.player.r, S.cores.player.c);
