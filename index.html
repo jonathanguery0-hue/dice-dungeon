@@ -12,6 +12,9 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@600;800&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="css/style.css">
 <title>Dice Dungeon Duel</title>
 </head>
@@ -19,31 +22,33 @@
 
 <!-- MENU -->
 <section id="menu" class="screen">
-  <div class="menuCard panel">
-    <h1 class="logo">DICE DUNGEON</h1>
-    <div class="tag">DUEL · V7</div>
+  <div class="menuWrap">
+    <header class="hero">
+      <div class="heroDice" aria-hidden="true"><i class="d1">◇</i><i class="d2">⚔</i><i class="d3">✦</i></div>
+      <h1 class="logo">Dice Dungeon</h1>
+      <p class="tagline">Lance · Invoque · Assiège</p>
+    </header>
     <div class="profile">
-      <div class="profileTop"><span class="lvl">NIVEAU <b id="pfLevel">1</b></span><span id="pfXp" class="muted"></span></div>
-      <div class="bar"><i id="pfBar"></i></div>
-      <div id="pfNext" class="small muted"></div>
+      <span class="lvl">Niv. <b id="pfLevel">1</b></span>
+      <div class="pfMain"><div class="bar"><i id="pfBar"></i></div><div class="pfRow"><span id="pfNext"></span><span id="pfXp"></span></div></div>
     </div>
-    <div class="menuButtons">
-      <button class="btn gold hidden" id="mResume">▶ Reprendre le duel</button>
-      <button class="btn gold" id="mTuto">🎓 Tutoriel — apprendre à jouer</button>
-      <button class="btn gold" id="mCampaign">◆ Campagne</button>
-      <button class="btn" id="mQuick">⚔ Duel rapide</button>
-      <button class="btn" id="mDeck">▣ Construire le deck</button>
-      <button class="btn ghost" id="mRules">? Règles</button>
-      <button class="btn ghost hidden" id="mInstall">📲 Installer le jeu</button>
+    <button class="btn primary big hidden" id="mResume">Reprendre le duel</button>
+    <button class="btn primary big" id="mQuick">⚔ Duel rapide</button>
+    <div class="loadout">
+      <button class="slot" id="mArena"><small>Arène</small><b id="mArenaName"></b><span id="mArenaSize"></span></button>
+      <button class="slot" id="mInv"><small>Invocateur</small><b id="mInvName"></b><span id="mInvHp"></span></button>
     </div>
-    <h2 class="sectionTitle">Arène du duel rapide</h2>
-    <div id="arenaGrid" class="choiceGrid"></div>
-    <h2 class="sectionTitle">Invocateur</h2>
-    <div id="invGrid" class="choiceGrid three"></div>
-    <div class="menuFoot">
-      <button class="btn ghost small" id="mSettings">⚙ Réglages</button>
+    <div class="menuTiles">
+      <button class="tileBtn" id="mTuto"><i>🎓</i><b>Tutoriel</b><span>Apprendre en jouant</span></button>
+      <button class="tileBtn" id="mCampaign"><i>◆</i><b>Campagne</b><span id="mCampSub">7 duels</span></button>
+      <button class="tileBtn" id="mDeck"><i>▣</i><b>Deck</b><span>20 cartes</span></button>
     </div>
-    <p class="legal">Projet fan non commercial inspiré du principe de Dungeon Dice Monsters. Monstres, illustrations et sons sont originaux.</p>
+    <nav class="menuFoot">
+      <button class="linkBtn" id="mRules">Règles</button>
+      <button class="linkBtn" id="mSettings">Réglages</button>
+      <button class="linkBtn hidden" id="mInstall">Installer le jeu</button>
+    </nav>
+    <p class="legal">Projet fan non commercial inspiré de Dungeon Dice Monsters. Monstres, illustrations et sons originaux.</p>
   </div>
 </section>
 
@@ -92,9 +97,9 @@
 <section id="battle" class="screen hidden">
   <header class="topbar">
     <button class="iconBtn" id="bMenu" aria-label="Menu du duel">☰</button>
-    <div class="duelist p"><div class="dname" id="pName"></div><div class="hpbar"><i id="pHpBar"></i></div><b class="hpnum" id="pHp"></b></div>
+    <div class="duelist p"><span class="medal" id="pMedal"></span><div class="dmeta"><div class="dname" id="pName"></div><div class="hearts" id="pHearts"></div></div><b class="hpnum" id="pHp"></b></div>
     <div class="turnPill" id="turnPill"></div>
-    <div class="duelist e"><div class="dname" id="eName"></div><div class="hpbar"><i id="eHpBar"></i></div><b class="hpnum" id="eHp"></b></div>
+    <div class="duelist e"><b class="hpnum" id="eHp"></b><div class="dmeta"><div class="dname" id="eName"></div><div class="hearts" id="eHearts"></div></div><span class="medal" id="eMedal"></span></div>
   </header>
   <div class="crestBar" id="crests"></div>
   <div class="boardWrap" id="boardWrap">
@@ -108,10 +113,10 @@
     <div class="context" id="context"></div>
     <div class="handRow"><div class="hand" id="hand"></div></div>
     <nav class="actionBar">
-      <button class="act" id="aRoll"><b>🎲</b><span>Lancer</span></button>
       <button class="act" id="aSummon"><b>◇</b><span>Invoquer</span><em id="aSummonN"></em></button>
       <button class="act" id="aTactics"><b>◆</b><span>Tactique</span></button>
-      <button class="act end" id="aEnd"><b>▶</b><span>Fin du tour</span></button>
+      <button class="act main" id="aRoll"><b>🎲</b><span>Lancer les dés</span></button>
+      <button class="act main end hidden" id="aEnd"><b>▶</b><span>Fin du tour</span></button>
     </nav>
   </div>
 </section>

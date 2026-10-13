@@ -106,25 +106,35 @@ $$('[data-back]').forEach(b => b.onclick = () => show('menu'));
 function renderMenu() {
   const xp = store.xpProgress(), nl = store.nextUnlockLevel();
   $('#pfLevel').textContent = xp.level;
-  $('#pfXp').textContent = xp.span ? `${xp.cur} / ${xp.span} XP` : 'Niveau maximum';
+  $('#pfXp').textContent = xp.span ? `${xp.cur} / ${xp.span} XP` : 'Niveau max';
   $('#pfBar').style.width = xp.pct + '%';
-  $('#pfNext').innerHTML = nl ? `Prochain déblocage — <b>Niveau ${nl}</b> : ${store.unlocksAtLevel(nl).slice(0, 4).join(' · ')}`
-    : `Collection complète · ${store.profile.wins} victoire(s) sur ${store.profile.matches} duel(s)`;
-  $('#mTuto').classList.toggle('gold', !store.settings.tutorialDone);
-  $('#mTuto').classList.toggle('ghost', !!store.settings.tutorialDone);
+  $('#pfNext').textContent = nl ? `Niveau ${nl} : ${store.unlocksAtLevel(nl)[0]}${store.unlocksAtLevel(nl).length > 1 ? ' et plus' : ''}`
+    : `${store.profile.wins} victoire(s) · collection complète`;
+  $('#mTuto').classList.toggle('new', !store.settings.tutorialDone);
   const saved = store.loadBattle();
   $('#mResume').classList.toggle('hidden', !saved);
-  if (saved) $('#mResume').textContent = `▶ Reprendre le duel (tour ${saved.turn})`;
-  $('#arenaGrid').innerHTML = Object.values(ARENAS).map(a => `<button class="choice ${store.settings.arena === a.id ? 'on' : ''}" data-arena="${a.id}">
-    <b>${esc(a.name)} · ${a.size}</b><span>${esc(a.desc)}</span></button>`).join('');
-  $('#invGrid').innerHTML = Object.values(INVOCATORS).map(v => {
-    const open = store.isInvocatorUnlocked(v.id);
-    return `<button class="choice inv ${store.settings.invocator === v.id ? 'on' : ''}" data-inv="${v.id}" ${open ? '' : 'disabled'}>
-      <i class="glyph">${open ? v.glyph : '🔒'}</i><b>${esc(v.name)}</b><span>${open ? esc(v.passive) : 'Niveau ' + store.unlockLevelFor(v.id, 'invocator')}</span></button>`;
-  }).join('');
-  $$('[data-arena]').forEach(b => b.onclick = () => { store.settings.arena = b.dataset.arena; store.saveSettings(); renderMenu(); });
-  $$('[data-inv]').forEach(b => b.onclick = () => { store.settings.invocator = b.dataset.inv; store.saveSettings(); renderMenu(); });
+  $('#mQuick').classList.toggle('secondary', !!saved);
+  if (saved) $('#mResume').textContent = `▶ Reprendre le duel · tour ${saved.turn}`;
+  const a = ARENAS[store.settings.arena], v = INVOCATORS[store.settings.invocator];
+  $('#mArenaName').textContent = a.name; $('#mArenaSize').textContent = a.size;
+  $('#mInvName').textContent = `${v.glyph} ${v.name}`; $('#mInvHp').textContent = `${v.hp} PV`;
+  $('#mCampSub').textContent = `${store.campaign.cleared.length}/${CAMPAIGN_MISSIONS.length} · ${store.campaignRank()}`;
 }
+function pickArena() {
+  const b = openSheet(`<h2>Arène du duel rapide</h2><div class="choiceList">${Object.values(ARENAS).map(a => `<button class="choice ${store.settings.arena === a.id ? 'on' : ''}" data-arena="${a.id}">
+    <b>${esc(a.name)}</b><em>${a.size}</em><span>${esc(a.desc)}</span></button>`).join('')}</div>`);
+  b.querySelectorAll('[data-arena]').forEach(x => x.onclick = () => { store.settings.arena = x.dataset.arena; store.saveSettings(); closeSheet(); renderMenu(); });
+}
+function pickInvocator() {
+  const b = openSheet(`<h2>Ton Invocateur</h2><p class="muted small">Il reste sur sa case : s’il tombe, tu perds.</p><div class="choiceList">${Object.values(INVOCATORS).map(v => {
+    const open = store.isInvocatorUnlocked(v.id);
+    return `<button class="choice ${store.settings.invocator === v.id ? 'on' : ''}" data-inv="${v.id}" ${open ? '' : 'disabled'}>
+      <b>${open ? v.glyph : '🔒'} ${esc(v.name)} <small>${esc(v.title)}</small></b><em>${v.hp} PV</em><span>${open ? esc(v.passive) : 'Débloqué au niveau ' + store.unlockLevelFor(v.id, 'invocator')}</span></button>`;
+  }).join('')}</div>`);
+  b.querySelectorAll('[data-inv]').forEach(x => x.onclick = () => { store.settings.invocator = x.dataset.inv; store.saveSettings(); closeSheet(); renderMenu(); });
+}
+$('#mArena').onclick = pickArena;
+$('#mInv').onclick = pickInvocator;
 $('#mTuto').onclick = () => startTutorial();
 $('#mQuick').onclick = () => startBattle({mode: 'quick', arenaId: store.settings.arena});
 $('#mCampaign').onclick = () => show('campaign');
@@ -377,27 +387,30 @@ function render() {
   $('#ticker').innerHTML = S.log[0] ? S.log[0].msg : '';
   $('#ticker').className = 'ticker ' + (S.log[0]?.cls || '');
 }
+function hearts(core) {
+  return Array.from({length: core.maxHp}, (_, i) => `<i class="${i < core.hp ? 'on' : ''}"></i>`).join('');
+}
 function renderTop() {
   const pc = S.cores.player, ec = S.cores.enemy, pi = INVOCATORS[pc.invId], ei = INVOCATORS[ec.invId];
   const mission = S.mode === 'campaign' ? CAMPAIGN_MISSIONS[S.missionIndex] : null;
-  $('#pName').textContent = `${pi.glyph} ${pi.name}`;
-  $('#eName').textContent = mission ? mission.rival.split(' — ')[0] : `${ei.glyph} ${ei.name}`;
+  $('#pMedal').textContent = pi.glyph; $('#eMedal').textContent = ei.glyph;
+  $('#pName').textContent = pi.name;
+  $('#eName').textContent = mission ? mission.rival.split(' — ')[0] : ei.name;
   $('#pHp').textContent = pc.hp; $('#eHp').textContent = ec.hp;
-  $('#pHpBar').style.width = pc.hp / pc.maxHp * 100 + '%'; $('#eHpBar').style.width = ec.hp / ec.maxHp * 100 + '%';
-  $('#turnPill').innerHTML = `Tour ${S.turn}<small>${S.over ? 'Fin' : S.side === 'player' ? 'À toi' : 'Rival'}</small>`;
+  $('#pHearts').innerHTML = hearts(pc); $('#eHearts').innerHTML = hearts(ec);
+  $('#turnPill').innerHTML = `<b>${S.turn}</b><small>${S.over ? 'fin' : S.side === 'player' ? 'à toi' : 'rival'}</small>`;
   $('#turnPill').className = 'turnPill ' + (S.side === 'player' ? 'mine' : 'theirs') + (S.turn >= 10 ? ' danger' : '');
   audio.setMode(S.turn >= 10 || pc.hp <= 2 || ec.hp <= 2 ? 'tension' : 'battle');
 }
 function renderCrests() {
   const c = P().crests, faces = E.rollFaces(S, 'player');
-  const extra = [];
-  if (P().reaction) extra.push('<span class="flag">◆ Garde prête</span>');
-  if (P().nextAttackBoost) extra.push(`<span class="flag">⚔ +${P().nextAttackBoost} prochaine attaque</span>`);
-  if (P().relayDiscount) extra.push('<span class="flag">✦ Relais : 1 pas offert</span>');
-  if (P().bonusDieNext) extra.push('<span class="flag">+1 dé au prochain lancer</span>');
-  $('#crests').innerHTML = CREST_KEYS.map(k => `<span class="crest f-${k} ${c[k] ? '' : 'zero'}" title="${crestName[k]}"><i>${FACE[k][0]}</i><b>${c[k]}</b></span>`).join('')
-    + `<span class="roll">${faces.length ? 'Lancer ' + faces.map(f => `<i class="f-${f}">${FACE[f][0]}</i>`).join('') : '<span class="muted">Pas encore lancé</span>'}</span>`
-    + extra.join('');
+  const flags = [];
+  if (P().reaction) flags.push('◆ Garde prête');
+  if (P().nextAttackBoost) flags.push(`⚔ +${P().nextAttackBoost} prochaine attaque`);
+  if (P().relayDiscount) flags.push('✦ 1 pas offert');
+  if (P().bonusDieNext) flags.push('+1 dé au prochain lancer');
+  $('#crests').innerHTML = `<div class="tray">${CREST_KEYS.map(k => `<span class="crest c-${k} ${c[k] ? '' : 'zero'}" title="${crestName[k]}"><i>${FACE[k][0]}</i><b>${c[k]}</b></span>`).join('')}</div>`
+    + `<div class="rollInfo">${faces.length ? `<span class="lbl">Lancer</span>${faces.map(f => `<i class="mini c-${f}">${FACE[f][0]}</i>`).join('')}` : '<span class="lbl">Dés pas encore lancés</span>'}${flags.map(f => `<span class="flag">${f}</span>`).join('')}</div>`;
 }
 function renderBoard() {
   const tg = targets(), sel = ui.sel, out = [];
@@ -410,13 +423,14 @@ function renderBoard() {
     if (core) {
       const inv = INVOCATORS[core.invId];
       cls.push('core', 'core-' + core.side);
-      inner += `<div class="coreTok"><b>${inv.glyph}</b><span>♥${core.hp}</span>${core.barrier && S.side !== core.side ? '<i class="barrier"></i>' : ''}</div>`;
+      inner += `<div class="coreTok">${core.barrier && S.side !== core.side ? '<i class="barrier"></i>' : ''}<b>${inv.glyph}</b><span>${core.hp}</span></div>`;
     }
     if (u) {
       const st = (E.isFrozen(S, u) ? '❄' : '') + (E.isStealthed(S, u) ? '◐' : '') + (u.shield ? '◆' : '') + (u.empowered ? '⚔' : '');
       const spent = u.side === 'player' && S.side === 'player' && u.attacked && E.moveBudget(S, u).steps === 0;
-      inner += `<div class="unit ${u.side === 'player' ? 'mine' : 'foe'} ${u.uid === sel ? 'sel' : ''} ${E.isStealthed(S, u) ? 'stealth' : ''} ${E.isFrozen(S, u) ? 'frozen' : ''} ${spent ? 'spent' : ''}">
-        <i class="art art-${u.id}"></i><b class="hp">${u.hp}</b><b class="atk">${E.unitAtk(S, u)}</b>${st ? `<span class="st">${st}</span>` : ''}</div>`;
+      const v = vis(u.id);
+      inner += `<div class="unit ${u.side === 'player' ? 'mine' : 'foe'} ${u.uid === sel ? 'sel' : ''} ${E.isStealthed(S, u) ? 'stealth' : ''} ${E.isFrozen(S, u) ? 'frozen' : ''} ${spent ? 'spent' : ''}" style="--c1:${v.c1};--c2:${v.c2};--glow:${v.glow}">
+        <i class="glyph">${v.glyph}</i><b class="atk">${E.unitAtk(S, u)}</b><b class="hp">${u.hp}</b>${st ? `<span class="st">${st}</span>` : ''}</div>`;
     }
     const tk = tg.get(k);
     if (tk) cls.push('t-' + tk);
@@ -427,27 +441,28 @@ function renderBoard() {
 }
 function renderContext() {
   const box = $('#context'), u = ui.sel && E.unitById(S, ui.sel);
+  $('#battle .side').classList.toggle('unitMode', !!u && myTurn());
   if (S.over) { box.innerHTML = ''; return; }
   if (S.side !== 'player') { box.innerHTML = `<div class="hint">⏳ Le rival joue…</div>`; return; }
   if (!u) {
-    const hint = !P().rolled ? 'Commence par <b>🎲 Lancer</b> : chaque face rejoint ta réserve.'
-      : S.units.some(x => x.side === 'player') ? 'Touche un de tes monstres pour le faire agir. Touche une carte de ta main pour la lire.'
-      : P().crests.summon ? 'Touche <b>◇ Invoquer</b> pour poser ton premier monstre à côté de ton Invocateur.'
+    const hint = !P().rolled ? 'Lance les dés : chaque face rejoint ta réserve.'
+      : S.units.some(x => x.side === 'player') ? 'Touche un monstre pour agir, ou une carte pour la lire.'
+      : P().crests.summon ? 'Invoque ton premier monstre à côté de ton Invocateur.'
       : 'Pas de ◇ ce tour : utilise tes cartes ou termine le tour.';
     box.innerHTML = `<div class="hint">${hint}</div>`; return;
   }
-  const m = MONSTERS[u.id], sk = SKILLS[u.id], st = E.skillState(S, u.uid), bud = E.moveBudget(S, u);
+  const m = MONSTERS[u.id], sk = SKILLS[u.id], st = E.skillState(S, u.uid), bud = E.moveBudget(S, u), v = vis(u.id);
   const chargeOk = !u.attacked && P().crests.attack > 0 && u.empowered < 2;
+  const tags = [u.shield && '<span>◆ Garde</span>', E.isFrozen(S, u) && '<span class="bad">❄ Gelé</span>', E.isStealthed(S, u) && '<span>◐ Furtif</span>',
+    u.unstable && '<span class="bad">Instable</span>', u.attacked && '<span class="dim">a attaqué</span>'].filter(Boolean).join('');
   box.innerHTML = `<div class="unitCard">
-    <i class="thumb art-${u.id}" data-info="unit"></i>
-    <div class="grow"><b>${esc(m.name)}</b>
-      <div class="chips"><span>♥ ${u.hp}/${u.maxHp}</span><span>⚔ ${E.unitAtk(S, u)}${u.empowered ? '+' + u.empowered : ''}</span><span>➤ ${bud.steps}/${u.mov}</span>${u.shield ? '<span>◆ Garde</span>' : ''}
-      ${E.isFrozen(S, u) ? '<span class="bad">❄ Gelé</span>' : ''}${E.isStealthed(S, u) ? '<span>◐ Furtif</span>' : ''}${u.unstable ? '<span class="bad">Instable</span>' : ''}${u.attacked ? '<span class="muted">a attaqué</span>' : ''}</div>
-</div>
+    <button class="token" data-info="unit" style="--c1:${v.c1};--c2:${v.c2};--glow:${v.glow}" aria-label="Fiche de ${esc(m.name)}">${v.glyph}</button>
+    <div class="uMain"><div class="uName">${esc(m.name)}<span class="uTags">${tags}</span></div>
+      <div class="stats"><span class="s-hp"><i>♥</i>${u.hp}<small>/${u.maxHp}</small></span><span class="s-atk"><i>⚔</i>${E.unitAtk(S, u)}${u.empowered ? `<small>+${u.empowered}</small>` : ''}</span><span class="s-mov"><i>➤</i>${bud.steps}<small>/${u.mov}</small></span></div></div>
     <div class="unitBtns">
-      <button class="btn small ${chargeOk ? '' : 'off'}" id="uCharge">⚔ Charger <small>${u.empowered}/2</small></button>
-      <button class="btn small skill ${st.ready ? 'ready' : 'off'}" id="uSkill">✦ ${esc(sk.name)} <small>${faces(sk.req)}</small></button>
-      <button class="btn small ghost" id="uInfo">ⓘ</button>
+      <button class="btn small ${chargeOk ? '' : 'off'}" id="uCharge">⚔<span class="lbl"> Charger</span></button>
+      <button class="btn small skill ${st.ready ? 'ready' : 'off'}" id="uSkill"><span>${esc(sk.name)}</span> <small>${faces(sk.req)}</small></button>
+      <button class="btn small ghost" id="uInfo" aria-label="Fiche">ⓘ</button>
     </div></div>`;
   $('#uCharge').onclick = () => act(() => E.charge(S, u.uid));
   $('#uSkill').onclick = () => {
@@ -462,24 +477,27 @@ function renderHand() {
   const h = $('#hand'), cc = E.concentrationCost(S, 'player');
   const cards = P().hand.map((id, i) => {
     const can = myTurn() && E.canPlayEffect(S, 'player', i).ok;
-    return `<button class="handCard ${can ? '' : 'off'}" data-hand="${i}" style="--glow:${vis(id).glow}"><i class="art art-${id}"></i><b class="hc">✦${EFFECTS[id].cost}</b><span>${esc(EFFECTS[id].name)}</span></button>`;
+    const v = vis(id);
+    return `<button class="handCard ${can ? '' : 'off'}" data-hand="${i}" style="--c1:${v.c1};--c2:${v.c2};--glow:${v.glow}"><i class="hg">${v.glyph}</i><b class="hc">${EFFECTS[id].cost}</b><span>${esc(EFFECTS[id].name)}</span></button>`;
   });
   const canConc = myTurn() && !P().concentrationUsed && P().crests.magic >= cc && E.canDraw(S, 'player');
-  h.innerHTML = cards.join('') + `<button class="handCard conc ${canConc ? '' : 'off'}" id="hConc"><b>📖</b><span>Piocher<br>${cc}✦</span></button>`
-    + `<span class="handMeta">${P().hand.length}/5${P().magicPlayed ? ' · effet joué' : ''}</span>`;
+  h.innerHTML = cards.join('') + `<button class="handCard conc ${canConc ? '' : 'off'}" id="hConc"><i class="hg">+</i><b class="hc">${cc}</b><span>Piocher</span></button>`
+    + `<span class="handMeta">${P().hand.length}/5${P().magicPlayed ? '<br>effet joué' : ''}</span>`;
   $$('[data-hand]').forEach(b => b.onclick = () => openHandCard(+b.dataset.hand));
   $('#hConc').onclick = () => act(() => E.concentrate(S, 'player'));
 }
 function renderActions() {
   const mine = myTurn(), p = P(), canSummon = mine && p.crests.summon > 0 && E.summonTargets(S, 'player').length > 0;
+  // un seul bouton principal : « Lancer les dés » tant que ce n'est pas fait, puis « Fin du tour »
+  $('#aRoll').classList.toggle('hidden', p.rolled && S.side === 'player');
+  $('#aEnd').classList.toggle('hidden', !(p.rolled && S.side === 'player'));
   $('#aRoll').disabled = !mine || p.rolled;
-  $('#aRoll').classList.toggle('glow', mine && !p.rolled);
   $('#aSummon').disabled = !canSummon;
   $('#aSummon').classList.toggle('glow', canSummon && !S.units.some(u => u.side === 'player'));
-  $('#aSummonN').textContent = p.crests.summon ? '◇' + p.crests.summon : '';
+  $('#aSummonN').textContent = p.crests.summon ? p.crests.summon : '';
   $('#aTactics').disabled = !mine;
   $('#aEnd').disabled = !mine;
-  $('#aEnd').classList.toggle('glow', mine && p.rolled && !anythingToDo());
+  $('#aEnd').classList.toggle('calm', mine && anythingToDo());
 }
 function anythingToDo() {
   const p = P();
