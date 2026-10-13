@@ -810,7 +810,8 @@ Touche deux fois pour confirmer. <b>Charger</b> dépense 1 ⚔ : +1 dégât (max
 <h3>9. Relais, familles, biomes</h3>
 <p>Le <b>Relais</b> central offre 1 pas gratuit par tour à son contrôleur. Chaque famille a une synergie et chaque biome une règle : touche une case ou un monstre pour la lire.</p>
 <h3>10. Le donjon s’emballe</h3>
-<p>Tour 4 : pluie de coffres. Tour 7 : tempête de dés (4 dés). Tour 10 : <b>Mort subite</b> (Invocateurs -1 PV, monstres +1 ATQ). Tour 15 : <b>Effondrement</b> — chaque Invocateur perd 1 PV au début de son tour.</p>`;
+<p>Tour 4 : pluie de coffres. Tour 7 : tempête de dés (4 dés). Tour 10 : <b>Mort subite</b> (Invocateurs -1 PV, monstres +1 ATQ). Tour 15 : <b>Effondrement</b> — chaque Invocateur perd 1 PV au début de son tour.</p>
+<p class="muted small">Projet fan non commercial inspiré de Dungeon Dice Monsters. Monstres, illustrations et sons originaux.</p>`;
 
 
 /* =================== TUTORIEL =================== */
