@@ -1,12 +1,12 @@
 // Service worker : met le jeu en cache pour qu'il fonctionne hors-ligne.
 // Changer VERSION à chaque mise en ligne pour que les joueurs reçoivent la nouvelle version.
-const VERSION = 'dice-dungeon-v8.0.0';
+const VERSION = 'dice-dungeon-v8.0.1';
 const FILES = ['./', './index.html', './manifest.webmanifest', './css/style.css',
   './js/data.js', './js/art.js', './js/engine.js', './js/ai.js', './js/store.js', './js/story.js', './js/meta.js', './js/audio.js', './js/ui.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(f => new Request(f, {cache: 'reload'})))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
@@ -23,7 +23,7 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (!e.request.url.startsWith(self.location.origin)) return;
-  e.respondWith(fetch(e.request)
+  e.respondWith(fetch(e.request, {cache: 'no-cache'})
     .then(res => { const copy = res.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); return res; })
     .catch(() => caches.match(e.request, {ignoreSearch: true}).then(r => r || caches.match('./index.html'))));
 });
