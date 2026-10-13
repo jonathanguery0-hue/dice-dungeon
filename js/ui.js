@@ -56,16 +56,24 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sheetLock
 function vis(id) { return DD.visualFor(id); }
 function dieStrip(m, list) { return `<div class="dieStrip">${(list || m.faces).map(f => `<i class="f-${f}">${FACE[f][0]}</i>`).join('')}</div>`; }
 /* mine : carte de ta collection (affiche son niveau et ton dé modifié) */
+const ATTR = {Feu: ['🜂', '#ff6b3d'], Acier: ['⚙', '#a9b8cc'], Terre: ['⛰', '#c79a5b'], Arcane: ['✦', '#b07bff'], Glace: ['❄', '#7fe3ff'],
+  Vent: ['❋', '#7ee08a'], Ombre: ['◐', '#9b5cff'], Foudre: ['ϟ', '#ffd84d']};
+/* carte au format « jeu de cartes à collectionner » : bandeau de nom, niveau, illustration, encadré, statistiques.
+   mine : carte de ta collection (affiche sa maîtrise et ton dé modifié) */
 function cardHTML(id, {qty = 0, locked = 0, extra = '', mine = false} = {}) {
-  const c = ALL[id], v = vis(id), lvl = mine ? meta.cardLevel(id) : 1;
-  const style = `--c1:${v.c1};--c2:${v.c2};--glow:${v.glow};--fam:${c.type === 'monster' ? DD.familyCardColor(c.family) : v.glow}`;
-  const cost = c.type === 'monster' ? `<span class="cost">${'◇'.repeat(summonCost(c))}</span>` : `<span class="cost mag">✦${c.cost - (mine && lvl >= 5 ? 1 : 0)}</span>`;
-  const top = `<span class="cTop"><span>${mine && lvl > 1 ? `<i class="cStars">${'★'.repeat(lvl)}</i>` : c.type === 'monster' ? 'Niv ' + c.lv : esc(v.sigil)}</span>${cost}</span>`;
-  const bottom = c.type === 'monster'
-    ? `<span class="cStats">♥${c.hp + (mine && lvl >= 5 ? 1 : 0)} ⚔${c.atk} ➤${c.mov}</span>${dieStrip(c, mine ? meta.facesOf(id) : null)}`
-    : `<span class="cShort">${esc(c.short)}</span>`;
-  return `<div class="card ${c.type} ${locked ? 'locked' : ''} ${lvl >= 5 ? 'lvl-gold' : lvl >= 3 ? 'lvl-silver' : ''} ${extra}" data-card="${id}" style="${style}">
-    <i class="cArt art-${id}"></i>${top}<span class="cName">${esc(c.name)}</span>${bottom}
+  const c = ALL[id], v = vis(id), lvl = mine ? meta.cardLevel(id) : 1, mon = c.type === 'monster';
+  const style = `--c1:${v.c1};--c2:${v.c2};--glow:${v.glow}`;
+  const attr = mon ? ATTR[c.element] || ['✦', '#ccc'] : ['✦', '#5fe3c0'];
+  const level = mon ? `<div class="cLevel">${'<i>★</i>'.repeat(c.lv)}</div>` : `<div class="cLevel spell">CARTE EFFET <b>✦${c.cost - (mine && lvl >= 5 ? 1 : 0)}</b></div>`;
+  const box = mon
+    ? `<div class="cBox"><b class="cType">[${esc(c.family)} / ${esc(c.role)}]</b>${dieStrip(c, mine ? meta.facesOf(id) : null)}
+        <div class="cStat"><span>ATQ/<b>${c.atk}</b></span><span>PV/<b>${c.hp + (mine && lvl >= 5 ? 1 : 0)}</b></span><span>MOV/<b>${c.mov}</b></span></div></div>`
+    : `<div class="cBox"><b class="cType">[Effet]</b><p>${esc(c.short)}</p></div>`;
+  return `<div class="card ygo ${c.type} ${locked ? 'locked' : ''} ${lvl >= 5 ? 'lvl-gold' : lvl >= 3 ? 'lvl-silver' : ''} ${extra}" data-card="${id}" style="${style}">
+    <div class="cHead"><span class="cName">${esc(c.name)}</span><span class="cAttr" style="--a:${attr[1]}">${attr[0]}</span></div>
+    ${level}
+    <div class="cArt"><span class="emo">${v.glyph}</span>${mon ? `<span class="cCost">${'◇'.repeat(summonCost(c))}</span>` : ''}${mine && lvl > 1 ? `<span class="cMastery">${'★'.repeat(lvl)}</span>` : ''}</div>
+    ${box}<i class="foil"></i>
     ${qty ? `<b class="qty">×${qty}</b>` : ''}${locked ? `<span class="lock">🔒 Niv ${locked}</span>` : ''}</div>`;
 }
 function cardProgressHTML(id) {
@@ -113,6 +121,7 @@ $$('[data-back]').forEach(b => b.onclick = () => show('menu'));
 
 /* =================== MENU =================== */
 function renderMenu() {
+  if (!$('#heroFan').children.length) $('#heroFan').innerHTML = ['steel_wolf_knight', 'crimson_drake', 'mystic_sage'].map(id => cardHTML(id)).join('');
   const xp = store.xpProgress(), nl = store.nextUnlockLevel();
   $('#pfLevel').textContent = xp.level;
   $('#pfXp').textContent = xp.span ? `${xp.cur} / ${xp.span} XP` : 'Niveau max';
@@ -328,7 +337,7 @@ function renderDeck() {
   const uniq = [...new Set(d)].sort((a, b) => (ALL[a].type === ALL[b].type ? 0 : ALL[a].type === 'monster' ? -1 : 1));
   $('#dkList').innerHTML = uniq.map(id => {
     const c = ALL[id];
-    return `<div class="deckRow"><i class="thumb art-${id}"></i><div class="grow" data-open="${id}"><b>${esc(c.name)}</b>
+    return `<div class="deckRow"><i class="thumb emoThumb" style="--c1:${vis(id).c1};--c2:${vis(id).c2};--glow:${vis(id).glow}">${vis(id).glyph}</i><div class="grow" data-open="${id}"><b>${esc(c.name)}</b>
       <span class="small muted">${c.type === 'monster' ? `${c.family} · Niv ${c.lv} · ${'◇'.repeat(summonCost(c))}` : `Effet · ✦${c.cost} · ${esc(c.short)}`}</span></div>
       <button class="btn small" data-rem="${id}">−</button><b class="qtyN">×${counts[id]}</b><button class="btn small" data-add2="${id}">+</button></div>`;
   }).join('') || '<p class="muted center">Deck vide : ajoute des cartes depuis la Collection ou charge un archétype.</p>';

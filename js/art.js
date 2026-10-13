@@ -39,7 +39,13 @@ const CARD_VISUALS={
  dragon_gate:{glyph:'🐉',sigil:'PORTAIL',c1:'#82392b',c2:'#210b0a',glow:'#ff8059'},
  dispel_wave:{glyph:'⊘',sigil:'DISPEL',c1:'#4a5874',c2:'#111827',glow:'#b7ceff'}
 };
-function visualFor(id){return CARD_VISUALS[id]||{glyph:'✦',sigil:'CARTE',c1:'#40516d',c2:'#0d1420',glow:'#9ecbff'}}
+/* illustration principale : un emoji en couleur, mis en scène sur un fond lumineux (cartes, pions, main) */
+const EMOJI={crimson_drake:'🐉',ember_whelp:'🦎',magma_behemoth:'🦖',steel_wolf_knight:'🐺',iron_sentinel:'🤖',boulder_ram:'🐏',stone_golem:'🗿',
+ mystic_sage:'🧙',arcane_familiar:'🦉',chronomancer:'🧝',crystal_guardian:'🐻‍❄️',goblin_raider:'👺',goblin_bombardier:'👹',goblin_shaman:'🧌',
+ shadow_imp:'😈',nightblade_stalker:'🥷',void_weaver:'🕷️',thunder_roc:'🦅',storm_lynx:'🐆',tempest_djinn:'🧞',
+ summon_surge:'🌀',mystic_heal:'💖',guard_sigil:'🛡️',flame_burst:'🔥',portal_shift:'🌌',shadow_veil:'🌑',treasure_sense:'💰',chain_dash:'⛓️',
+ war_drum:'🥁',arcane_insight:'📜',smoke_bomb:'💨',stone_skin:'🪨',frost_bind:'❄️',storm_step:'🌩️',dragon_gate:'⛩️',dispel_wave:'🌊'};
+function visualFor(id){const v=CARD_VISUALS[id]||{glyph:'✦',sigil:'CARTE',c1:'#40516d',c2:'#0d1420',glow:'#9ecbff'};return {...v,sym:v.glyph,glyph:EMOJI[id]||v.glyph}}
 function svgData(svg){return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg)}
 function cardArtSVG(id){
  const v=visualFor(id), base=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 300"><defs><linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="${v.c1}"/><stop offset="1" stop-color="${v.c2}"/></linearGradient><radialGradient id="halo" cx="0.5" cy="0.35" r="0.5"><stop offset="0" stop-color="${v.glow}" stop-opacity="0.9"/><stop offset="1" stop-color="${v.glow}" stop-opacity="0"/></radialGradient></defs><rect width="220" height="300" fill="url(%23bg)"/><rect width="220" height="300" fill="url(%23halo)" opacity="0.55"/>{{BODY}}<g opacity="0.2"><circle cx="110" cy="68" r="42" fill="none" stroke="#fff" stroke-width="1.4"/><circle cx="110" cy="68" r="58" fill="none" stroke="#fff" stroke-width="0.7" stroke-dasharray="2 4"/></g><rect x="10" y="10" width="200" height="280" rx="18" fill="none" stroke="#ffffff38" stroke-width="1.2"/></svg>`;
@@ -64,5 +70,5 @@ function cardArtSVG(id){
  return svgData(base.replace('{{BODY}}', bodies[id]||`<g><text x="110" y="150" text-anchor="middle" font-size="68" fill="#fff" opacity="0.88">${v.glyph}</text></g>`));
 }
 function familyCardColor(family){return ({Dragon:'#c85b3b',Gobelin:'#83a94d',Arcane:'#8d69d7',Ombre:'#7d4b9f',Construct:'#8a806d','Tempête':'#5b9fb0'}[family]||'#a58a55')}
-Object.assign(DD, {CARD_VISUALS, visualFor, cardArtSVG, familyCardColor});
+Object.assign(DD, {CARD_VISUALS, EMOJI, visualFor, cardArtSVG, familyCardColor});
 })(globalThis.DD = globalThis.DD || {});

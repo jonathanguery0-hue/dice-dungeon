@@ -14,17 +14,18 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@600;800&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=8.1.0">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@600;700;800&family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="css/style.css?v=9.0.0">
 <title>Dice Dungeon Duel</title>
 </head>
 <body>
+<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
 
 <!-- MENU -->
 <section id="menu" class="screen">
   <div class="menuWrap">
     <header class="hero">
-      <div class="heroDice" aria-hidden="true"><i class="d1">◇</i><i class="d2">⚔</i><i class="d3">✦</i></div>
+      <div class="heroFan" id="heroFan" aria-hidden="true"></div>
       <h1 class="logo">Dice Dungeon</h1>
       <p class="tagline">Lance · Invoque · Assiège</p>
     </header>
@@ -147,15 +148,15 @@
 <div id="banner" class="banner"></div>
 <div id="toast" class="toast"></div>
 
-<script src="js/data.js?v=8.1.0"></script>
-<script src="js/art.js?v=8.1.0"></script>
-<script src="js/engine.js?v=8.1.0"></script>
-<script src="js/ai.js?v=8.1.0"></script>
-<script src="js/store.js?v=8.1.0"></script>
-<script src="js/story.js?v=8.1.0"></script>
-<script src="js/meta.js?v=8.1.0"></script>
-<script src="js/audio.js?v=8.1.0"></script>
-<script src="js/ui.js?v=8.1.0"></script>
+<script src="js/data.js?v=9.0.0"></script>
+<script src="js/art.js?v=9.0.0"></script>
+<script src="js/engine.js?v=9.0.0"></script>
+<script src="js/ai.js?v=9.0.0"></script>
+<script src="js/store.js?v=9.0.0"></script>
+<script src="js/story.js?v=9.0.0"></script>
+<script src="js/meta.js?v=9.0.0"></script>
+<script src="js/audio.js?v=9.0.0"></script>
+<script src="js/ui.js?v=9.0.0"></script>
 <script>
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   // une nouvelle version prend la main : on recharge une fois pour ne pas mélanger deux versions

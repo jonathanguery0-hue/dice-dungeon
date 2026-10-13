@@ -692,3 +692,156 @@ h3{font:700 17px/1.2 var(--f-cond);letter-spacing:.02em;color:var(--text)}
 .setRow.col{flex-direction:column;align-items:stretch}
 .juke{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .juke .btn.on{box-shadow:inset 0 0 0 2px var(--brass);color:var(--brass-hi)}
+
+/* =====================================================================
+   V9 — « Arène des Duellistes »
+   Inspiration jeux de cartes à collectionner (cadres de cartes, terrain de duel lumineux),
+   en version moderne : fond d'aurores, verre dépoli, néons cyan (toi) et magenta (rival), or pour l'action.
+   ===================================================================== */
+:root{
+  --bg:#060818;--bg-2:#0b1028;--surface:#121a3a;--surface-2:#1a2450;--line:#26305e;--line-2:#36447e;
+  --text:#eef1ff;--muted:#9aa4cf;--dim:#6470a4;
+  --ally:#3fd0ff;--ally-deep:#0d5aa0;--foe:#ff3d7f;--foe-deep:#8f1846;
+  --f-display:"Cinzel Decorative","Cinzel",Georgia,serif;--f-card:"Cinzel",Georgia,"Times New Roman",serif;
+  --glass:linear-gradient(160deg,#1b2557d9,#0f1638d9);
+}
+body{background:radial-gradient(120% 70% at 50% -10%,#24206b 0,#0d0f33 45%,#060818 80%) fixed}
+.aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.aurora i{position:absolute;width:70vmax;height:70vmax;border-radius:50%;filter:blur(70px);opacity:.35;animation:drift 26s ease-in-out infinite alternate}
+.aurora i:nth-child(1){background:#3b2bd6;left:-25vmax;top:-20vmax}
+.aurora i:nth-child(2){background:#0fa3c9;right:-30vmax;top:20vh;animation-delay:-9s;opacity:.25}
+.aurora i:nth-child(3){background:#c0267a;left:10vw;bottom:-40vmax;animation-delay:-17s;opacity:.22}
+@keyframes drift{to{transform:translate(8vmax,6vmax) scale(1.15)}}
+h1,h2{font-family:var(--f-card);font-weight:800;letter-spacing:.02em}
+.logo{font-family:var(--f-display);font-weight:900;letter-spacing:.01em;font-size:clamp(40px,12.5vw,66px);line-height:1;
+  background:linear-gradient(100deg,#fff4c9 0,#f2c75a 22%,#a8741b 40%,#ffe9a6 50%,#c8902c 62%,#fff1bd 80%,#d9a440 100%);background-size:250% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 7s linear infinite;
+  filter:drop-shadow(0 2px 0 #3a2506) drop-shadow(0 8px 26px #f2c75a44)}
+@keyframes shine{to{background-position:-250% 0}}
+.tagline{color:#b6bdf0;letter-spacing:.28em}
+
+/* ---------- menu ---------- */
+.heroFan{display:flex;justify-content:center;align-items:flex-end;height:150px;margin:2px 0 4px;perspective:600px}
+.heroFan .card{width:92px;flex:0 0 92px;margin:0 -14px;transform-origin:50% 120%;box-shadow:0 14px 30px #000c,0 0 24px var(--glow)}
+.heroFan .card:nth-child(1){transform:rotate(-14deg) translateY(10px)}
+.heroFan .card:nth-child(2){width:106px;flex-basis:106px;z-index:2;animation:hover 5s ease-in-out infinite}
+.heroFan .card:nth-child(3){transform:rotate(14deg) translateY(10px)}
+@keyframes hover{50%{transform:translateY(-6px)}}
+.profile,.slot,.tileBtn,.modeBtn,.dailyCard,.choice,.preset,.node,.act,.mission,.panel,.notice,.deckRow{backdrop-filter:blur(8px)}
+.profile,.slot,.tileBtn,.modeBtn,.choice,.preset,.deckRow{background:var(--glass);box-shadow:inset 0 0 0 1px #7d8cff2e,0 8px 24px #0005}
+.dailyCard{background:linear-gradient(110deg,#4a2f0bcc,#1b2557d9 55%);box-shadow:inset 0 0 0 1.5px #f2c75a99,0 0 22px #f2c75a22}
+.dailyCard.done{background:var(--glass);box-shadow:inset 0 0 0 1px #7d8cff2e}
+.tileBtn.new{box-shadow:inset 0 0 0 2px #f2c75a,0 0 18px #f2c75a44}
+.btn{background:linear-gradient(180deg,#25306a,#161e48);box-shadow:inset 0 1px 0 #ffffff1f,inset 0 -3px 0 #00000066,0 4px 14px #0006}
+.btn.ghost{background:#0f163866;box-shadow:inset 0 0 0 1px #7d8cff55}
+.btn.primary,.btn.gold,.act.main{background:linear-gradient(180deg,#ffe7a3,#f2c14e 42%,#c48a22);color:#2a1904;box-shadow:inset 0 1px 0 #fff8,inset 0 -3px 0 #8a5e12,0 6px 22px #f2c14e40}
+@media (max-height:760px){.heroFan{height:120px}.heroFan .card{width:76px;flex-basis:76px;margin:0 -12px}.heroFan .card:nth-child(2){width:88px;flex-basis:88px}}
+@media (max-height:640px){.heroFan{display:none}}
+
+/* ---------- cartes ---------- */
+.card.ygo{position:relative;display:flex;flex-direction:column;gap:2.2cqw;aspect-ratio:59/86;max-width:100%;padding:4.5cqw 5cqw 4cqw;border-radius:5cqw;
+  container-type:inline-size;overflow:hidden;color:#1d1408;cursor:pointer;
+  background:linear-gradient(160deg,#eea45e,#c26a26 45%,#86400f);
+  box-shadow:0 10px 24px #000b,inset 0 0 0 1.5px #ffffff40,inset 0 0 0 3px #0000004d}
+.card.ygo.effect{background:linear-gradient(160deg,#4fd8b6,#169079 50%,#0a564a)}
+.card.ygo::after{display:none}
+.card.ygo>*{position:relative;z-index:1}
+.card.ygo .cHead{display:flex;align-items:center;gap:2cqw;padding:1.6cqw 2.4cqw;border-radius:2cqw;
+  background:linear-gradient(#fbf3de,#dccba3);box-shadow:inset 0 0 0 1px #00000055,inset 0 1px 0 #fff}
+.card.ygo .cName{position:static;flex:1;min-width:0;font:800 8.4cqw/1.1 var(--f-card);color:#1b1206;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:none;letter-spacing:0}
+.card.ygo .cAttr{flex:0 0 12cqw;height:12cqw;border-radius:50%;display:grid;place-items:center;font-size:7.5cqw;color:#fff;
+  background:radial-gradient(circle at 35% 30%,#fff9,transparent 45%),var(--a);box-shadow:0 0 0 1px #0007,0 0 6px var(--a)}
+.card.ygo .cLevel{display:flex;justify-content:flex-end;gap:1cqw;min-height:8cqw}
+.card.ygo .cLevel i{font-style:normal;width:8cqw;height:8cqw;border-radius:50%;display:grid;place-items:center;font-size:6cqw;line-height:1;color:#ffe9a8;
+  background:radial-gradient(circle at 35% 30%,#ffb35c,#d2430e 70%);box-shadow:0 0 0 .6cqw #5a1a05}
+.card.ygo .cLevel.spell{font:800 5.6cqw/8cqw var(--f-card);color:#06332b;letter-spacing:.04em}
+.card.ygo .cLevel.spell b{color:#fff;margin-left:1.5cqw;text-shadow:0 1px 2px #0008}
+.card.ygo .cArt{position:relative;inset:auto;flex:1 1 0;min-height:0;display:grid;place-items:center;overflow:hidden;
+  border:1.4cqw solid;border-color:#3a2408 #e6cf98 #e6cf98 #3a2408;
+  background:radial-gradient(circle at 50% 42%,var(--glow) 0,transparent 58%),
+    repeating-conic-gradient(from 0deg at 50% 45%,#ffffff12 0 5deg,transparent 5deg 15deg),
+    linear-gradient(160deg,var(--c1),var(--c2))}
+.card.ygo .emo{font-size:40cqw;line-height:1;filter:drop-shadow(0 1.5cqw 2cqw #000b)}
+.card.ygo .cCost{position:absolute;top:1.5cqw;left:2cqw;padding:0 2cqw;border-radius:9cqw;background:#0b0d13cc;color:#ffd36e;font:700 6.5cqw/1.5 var(--f-cond)}
+.card.ygo .cMastery{position:absolute;right:2cqw;bottom:1.5cqw;color:#ffe08a;font-size:7cqw;letter-spacing:-.5cqw;text-shadow:0 0 4px #000,0 0 8px #f2c14e}
+.card.ygo .cBox{padding:2.4cqw 3.4cqw;border-radius:1.2cqw;background:linear-gradient(#fbf4e2,#e5d6b2);box-shadow:inset 0 0 0 1px #00000055;color:#2a1d0b}
+.card.ygo .cType{display:block;font:800 5.6cqw/1.2 var(--f-card);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.ygo .cBox p{margin:1cqw 0 0;font:600 6.4cqw/1.2 var(--f-ui);color:#3a2a10}
+.card.ygo .dieStrip{position:static;display:flex;gap:1.4cqw;margin:1.8cqw 0}
+.card.ygo .dieStrip i{width:9.5cqw;height:9.5cqw;font-size:6.2cqw;border-radius:2cqw;box-shadow:inset 0 0 0 1px #0005}
+.card.ygo .cStat{display:flex;justify-content:space-between;border-top:1px solid #0003;padding-top:1.2cqw;font:700 5.4cqw var(--f-card);color:#3a2a10}
+.card.ygo .cStat b{font-size:7.4cqw;color:#1b1206}
+.card.ygo .foil{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0}
+.card.ygo.lvl-silver{background:linear-gradient(160deg,#f4f7ff,#b9c4d8 45%,#6f7d96)}
+.card.ygo.lvl-gold{background:linear-gradient(160deg,#fff0b8,#e2b44b 45%,#8c6514)}
+.card.ygo.lvl-silver .foil,.card.ygo.lvl-gold .foil{opacity:1;mix-blend-mode:overlay;background:linear-gradient(115deg,transparent 30%,#ffffffaa 45%,#9cf3ff77 50%,#ff9cf377 55%,transparent 68%);background-size:300% 100%;animation:foil 4.5s linear infinite}
+@keyframes foil{from{background-position:150% 0}to{background-position:-150% 0}}
+.card.ygo .qty{position:absolute;z-index:3;top:auto;bottom:30%;right:6cqw;padding:0 3.5cqw;border-radius:9cqw;background:#ffd36e;color:#2a1904;font:800 8cqw/1.5 var(--f-cond);box-shadow:0 2px 6px #0008}
+.card.ygo .lock{position:absolute;z-index:3;inset:40% 0 auto;text-align:center;font:800 8cqw var(--f-cond);color:#fff;text-shadow:0 2px 4px #000}
+.card.ygo.locked{filter:grayscale(1) brightness(.5)}
+.cardGrid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr))}
+.detail{grid-template-columns:150px 1fr}.detailArt .card{width:150px}
+@media (max-width:420px){.detail{grid-template-columns:118px 1fr}.detailArt .card{width:118px}}
+.detailArt .card .emo{animation:hover 5s ease-in-out infinite}
+.fx.summonFx .cine{width:130px}
+.cardGrid.draft{grid-template-columns:repeat(3,minmax(0,1fr))}
+.emoThumb{display:grid;place-items:center;font-style:normal;font-size:26px;border-radius:12px;
+  background:radial-gradient(circle at 50% 40%,var(--glow) 0,transparent 60%),linear-gradient(160deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 1px #ffffff33}
+
+/* ---------- duel ---------- */
+#battle{background:radial-gradient(120% 70% at 50% 42%,#1f2468 0,#0c0f30 55%,#05060f)}
+.topbar,.crestBar,.side{background:#0b1028cc;backdrop-filter:blur(12px)}
+.topbar{box-shadow:0 1px 0 #3fd0ff22}
+.side{border-top:1px solid #3fd0ff22}
+.dname{font-family:var(--f-card);font-weight:800;letter-spacing:.02em}
+.medal{background:radial-gradient(circle at 40% 30%,#fff7,transparent 55%),var(--ally-deep);box-shadow:0 0 0 2px var(--ally),0 0 14px #3fd0ff88}
+.duelist.e .medal{background:radial-gradient(circle at 40% 30%,#fff7,transparent 55%),var(--foe-deep);box-shadow:0 0 0 2px var(--foe),0 0 14px #ff3d7f88}
+.turnPill{background:#121a3a;font-family:var(--f-card)}
+.crest{background:#18214a;box-shadow:inset 0 0 0 1px #7d8cff33}
+.board{background:linear-gradient(#0a0e2ae6,#0a0e2ae6),repeating-linear-gradient(0deg,#3fd0ff10 0 1px,transparent 1px 24px);
+  box-shadow:0 0 0 1px #3fd0ff33,0 0 40px #3fd0ff1a,0 24px 60px #000a;border-radius:16px}
+.tile{background:#7d8cff0a;box-shadow:inset 0 0 0 1px #7d8cff14}
+.tile::before{background:#9aa8ff38}
+.o-player{--own:#3fd0ff}.o-enemy{--own:#ff3d7f}.o-neutral{--own:#ffd36e}
+.tile.floor{box-shadow:inset 0 1px 0 #ffffff45,inset 0 -3px 0 #0000005c,0 0 0 1px color-mix(in srgb,var(--own) 70%,transparent),0 0 12px -3px var(--own)}
+.tile.floor::after{background:var(--own);box-shadow:0 0 6px var(--own)}
+.b-citadel{background:linear-gradient(160deg,#7c88b4,#424a78)}
+.b-prairie{background:linear-gradient(160deg,#6cc35f,#2a6a3a)}
+.b-volcanic{background:radial-gradient(circle at 70% 70%,#ffae3a88,transparent 50%),linear-gradient(160deg,#d0502a,#5e1a10)}
+.b-arcane{background:radial-gradient(circle at 50% 45%,#e3c6ff66,transparent 55%),linear-gradient(160deg,#7f56e0,#35208a)}
+.b-swamp{background:linear-gradient(160deg,#4fa07a,#1d4a36)}
+.b-mountain{background:linear-gradient(160deg,#ad9470,#5a4a34)}
+.b-shadow{background:radial-gradient(circle at 50% 50%,#c77dff55,transparent 60%),linear-gradient(160deg,#5d2f8f,#220f40)}
+.b-crystal{background:linear-gradient(160deg,#6fd6f2,#1f6d8f)}
+.b-storm{background:linear-gradient(160deg,#3fb3b9,#14525a)}
+.bg{opacity:.28}
+.unit{box-shadow:0 0 0 2.5px var(--ally),0 0 12px #3fd0ffaa,0 4px 0 2px #000a}
+.unit.foe{box-shadow:0 0 0 2.5px var(--foe),0 0 12px #ff3d7faa,0 4px 0 2px #000a}
+.unit .glyph{font-size:calc(var(--ts)*.5);text-shadow:none;filter:drop-shadow(0 2px 2px #0009)}
+.unit.sel{box-shadow:0 0 0 3px #fff,0 0 20px 6px #ffffffaa}
+.board.tiny .unit{box-shadow:0 0 0 2px var(--ally),0 0 8px #3fd0ff99}
+.board.tiny .unit.foe{box-shadow:0 0 0 2px var(--foe),0 0 8px #ff3d7f99}
+.coreTok{background:radial-gradient(circle at 40% 30%,#ffffffaa,transparent 45%),conic-gradient(from 45deg,#0d5aa0,#3fd0ff,#0d5aa0,#1e80d0,#0d5aa0);box-shadow:0 0 0 3px var(--ally),0 0 22px #3fd0ffcc}
+.core-enemy .coreTok{background:radial-gradient(circle at 40% 30%,#ffffffaa,transparent 45%),conic-gradient(from 45deg,#8f1846,#ff3d7f,#8f1846,#c02a62,#8f1846);box-shadow:0 0 0 3px var(--foe),0 0 22px #ff3d7fcc}
+.token{background:radial-gradient(circle at 38% 30%,var(--glow) 0,var(--c1) 48%,var(--c2) 100%);box-shadow:0 0 0 3px var(--ally),0 0 14px #3fd0ff88;font-size:22px}
+.act{background:linear-gradient(180deg,#25306a,#161e48)}
+/* main : petites cartes Effet */
+.handCard{padding:0;background:linear-gradient(160deg,#4fd8b6,#169079 50%,#0a564a);box-shadow:inset 0 0 0 1px #ffffff40,0 4px 12px #0009}
+.handCard .hg{left:3px;right:3px;top:3px;bottom:18px;display:grid;place-items:center;border-radius:6px;font-size:22px;
+  background:radial-gradient(circle at 50% 40%,var(--glow) 0,transparent 60%),linear-gradient(160deg,var(--c1),var(--c2));box-shadow:inset 0 0 0 1px #0006;text-shadow:none}
+.handCard span{background:none;color:#fff;text-shadow:0 1px 2px #0009;padding:2px 2px 3px;font-family:var(--f-card);font-weight:800;font-size:9.5px}
+.handCard .hc{z-index:2}
+.handCard.conc{background:#18214a;outline-color:#7d8cff55}
+.handCard.conc .hg{background:none;box-shadow:none;font-size:24px}
+.handCard.conc span{color:var(--muted)}
+/* fenêtres et bannières */
+.sheetPanel{background:linear-gradient(180deg,#151d45,#0e1436);box-shadow:0 -10px 40px #000c,inset 0 1px 0 #7d8cff55}
+.banner{font-family:var(--f-card);background:#10173af0;box-shadow:0 12px 40px #000,inset 0 0 0 1px #f2c14e88,0 0 30px #f2c14e33}
+.result h1{font-family:var(--f-display)}
+.dlgPanel{background:linear-gradient(180deg,#1a2350,#10173a)}
+.diceOverlay{background:radial-gradient(circle,#2a2470d0,#05060aee 65%)}
+.diceTitle{font-family:var(--f-card)}
+@media (prefers-reduced-motion:reduce){.aurora i,.logo,.foil{animation:none!important}}
+.plus{z-index:5}
+.cardCell .info{z-index:5}
+.heroFan{margin-bottom:10px}
