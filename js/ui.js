@@ -69,11 +69,11 @@ function cardHTML(id, {qty = 0, locked = 0, extra = '', mine = false} = {}) {
     ? `<div class="cBox"><b class="cType">[${esc(c.family)} / ${esc(c.role)}]</b>${dieStrip(c, mine ? meta.facesOf(id) : null)}
         <div class="cStat"><span>ATQ/<b>${c.atk}</b></span><span>PV/<b>${c.hp + (mine && lvl >= 5 ? 1 : 0)}</b></span><span>MOV/<b>${c.mov}</b></span></div></div>`
     : `<div class="cBox"><b class="cType">[Effet]</b><p>${esc(c.short)}</p></div>`;
-  return `<div class="card ygo ${c.type} ${locked ? 'locked' : ''} ${lvl >= 5 ? 'lvl-gold' : lvl >= 3 ? 'lvl-silver' : ''} ${extra}" data-card="${id}" style="${style}">
+  return `<div class="card ygo ${c.type} ${locked ? 'locked' : ''} ${lvl >= 5 ? 'lvl-gold' : lvl >= 3 ? 'lvl-silver' : ''} ${extra}" data-card="${id}" style="${style}"><div class="cFrame">
     <div class="cHead"><span class="cName">${esc(c.name)}</span><span class="cAttr" style="--a:${attr[1]}">${attr[0]}</span></div>
     ${level}
     <div class="cArt"><span class="emo">${v.glyph}</span>${mon ? `<span class="cCost">${'◇'.repeat(summonCost(c))}</span>` : ''}${mine && lvl > 1 ? `<span class="cMastery">${'★'.repeat(lvl)}</span>` : ''}</div>
-    ${box}<i class="foil"></i>
+    ${box}</div><i class="foil"></i>
     ${qty ? `<b class="qty">×${qty}</b>` : ''}${locked ? `<span class="lock">🔒 Niv ${locked}</span>` : ''}</div>`;
 }
 function cardProgressHTML(id) {

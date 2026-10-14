@@ -739,13 +739,15 @@ h1,h2{font-family:var(--f-card);font-weight:800;letter-spacing:.02em}
 @media (max-height:640px){.heroFan{display:none}}
 
 /* ---------- cartes ---------- */
-.card.ygo{position:relative;display:flex;flex-direction:column;gap:2.2cqw;aspect-ratio:59/86;max-width:100%;padding:4.5cqw 5cqw 4cqw;border-radius:5cqw;
+.card.ygo{position:relative;display:block;aspect-ratio:59/86;max-width:100%;padding:0;border-radius:5%/3.43%;
   container-type:inline-size;overflow:hidden;color:#1d1408;cursor:pointer;
   background:linear-gradient(160deg,#eea45e,#c26a26 45%,#86400f);
   box-shadow:0 10px 24px #000b,inset 0 0 0 1.5px #ffffff40,inset 0 0 0 3px #0000004d}
 .card.ygo.effect{background:linear-gradient(160deg,#4fd8b6,#169079 50%,#0a564a)}
 .card.ygo::after{display:none}
 .card.ygo>*{position:relative;z-index:1}
+/* le cadre intérieur se mesure en cqw par rapport à la carte (la carte est le conteneur) */
+.card.ygo .cFrame{position:absolute;inset:0;display:flex;flex-direction:column;gap:2.2cqw;padding:4.5cqw 5cqw 4cqw;min-height:0}
 .card.ygo .cHead{display:flex;align-items:center;gap:2cqw;padding:1.6cqw 2.4cqw;border-radius:2cqw;
   background:linear-gradient(#fbf3de,#dccba3);box-shadow:inset 0 0 0 1px #00000055,inset 0 1px 0 #fff}
 .card.ygo .cName{position:static;flex:1;min-width:0;font:800 8.4cqw/1.1 var(--f-card);color:#1b1206;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:none;letter-spacing:0}
